@@ -1,0 +1,2217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Matrix Visualizer</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080b12;--surface:#0e1420;--card:#131b28dd;--border:#1e2d42;
+  --accent:#3b82f6;--glow:rgba(59,130,246,.25);
+  --green:#10b981;--red:#ef4444;--yellow:#f59e0b;--purple:#8b5cf6;
+  --text:#e2e8f0;--muted:#64748b;
+  --mono:'JetBrains Mono',monospace;--sans:'Inter',sans-serif;
+  --canvas-bg:#0d1420;--grid-line:rgba(30,45,66,.9);--axis-line:#2d4060;
+}
+html.light{
+  --bg:#f4f7fb;--surface:#ffffff;--card:#ffffffee;--border:#dbe4f0;
+  --accent:#2563eb;--glow:rgba(37,99,235,.18);
+  --text:#1e293b;--muted:#7a8aa0;
+  --canvas-bg:#ffffff;--grid-line:rgba(37,99,235,.1);--axis-line:#a8bdd9;
+}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);-webkit-tap-highlight-color:transparent;overflow-x:hidden}
+body{
+  background-image:
+    linear-gradient(rgba(59,130,246,.07) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(59,130,246,.07) 1px,transparent 1px),
+    linear-gradient(rgba(59,130,246,.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(59,130,246,.03) 1px,transparent 1px);
+  background-size:80px 80px,80px 80px,20px 20px,20px 20px;
+  transition:background-color .25s
+}
+html.light body{
+  background-image:
+    linear-gradient(rgba(37,99,235,.08) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(37,99,235,.08) 1px,transparent 1px),
+    linear-gradient(rgba(37,99,235,.035) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(37,99,235,.035) 1px,transparent 1px);
+  background-size:80px 80px,80px 80px,20px 20px,20px 20px;
+}
+/* ── HEADER ── */
+.hdr{background:rgba(14,20,32,.95);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);
+  padding:10px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:200}
+.hdr-icon{width:32px;height:32px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.hdr-title{font-size:15px;font-weight:700;line-height:1.2}
+.hdr-sub{font-size:10px;color:var(--muted)}
+.hdr-right{margin-left:auto;display:flex;gap:6px}
+.hdr-btn{padding:5px 10px;border-radius:7px;border:1px solid var(--border);background:rgba(14,20,32,.8);
+  color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap}
+.hdr-btn:hover{color:var(--accent);border-color:var(--accent)}
+/* ── LAYOUT ── */
+.main{padding:14px;display:flex;flex-direction:column;gap:14px;max-width:700px;margin:0 auto}
+/* ── CARD ── */
+.card{background:var(--card);backdrop-filter:blur(8px);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.ch{padding:9px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.cl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)}
+.cb{padding:13px}
+/* ── PILL ── */
+.pill{display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.pill-btn{flex:1;padding:5px 9px;font-size:11px;font-weight:600;background:transparent;border:none;color:var(--muted);cursor:pointer;transition:all .12s;white-space:nowrap}
+.pill-btn.on{background:var(--accent);color:#fff}
+/* ── SIZE BTNS ── */
+.sbrow{display:flex;gap:5px;flex-wrap:wrap}
+.sb{padding:5px 10px;border-radius:7px;font-family:var(--mono);font-size:11px;font-weight:600;
+  border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s}
+.sb.on{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 0 10px var(--glow)}
+/* ── MATRIX GRID ── */
+.gw{display:flex;flex-direction:column;gap:5px;align-items:center}
+.gr{display:flex;gap:5px}
+.cell{width:56px;height:48px;background:rgba(14,20,32,.85);border:1.5px solid var(--border);border-radius:9px;
+  font-family:var(--mono);font-size:15px;font-weight:600;color:var(--text);text-align:center;
+  outline:none;transition:border-color .15s,box-shadow .15s;-webkit-appearance:none;appearance:none}
+.cell:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--glow)}
+@media(max-width:370px){.cell{width:44px;height:42px;font-size:13px}}
+.bracket{font-family:var(--mono);font-size:42px;font-weight:300;color:var(--accent);opacity:.6;user-select:none;line-height:1}
+.mx-disp{display:flex;align-items:center;gap:8px;justify-content:center}
+/* matrix area indicator */
+.area-bar{display:flex;align-items:center;gap:8px;margin-top:10px;padding:8px 10px;
+  background:rgba(14,20,32,.6);border:1px solid var(--border);border-radius:8px}
+.area-label{font-size:10px;color:var(--muted);font-family:var(--mono)}
+.area-val{font-family:var(--mono);font-size:13px;font-weight:700}
+.area-rect{width:28px;height:28px;border:2px solid;border-radius:4px;flex-shrink:0;transition:all .3s}
+/* ── TEXT INPUT ── */
+#mtxt{width:100%;min-height:88px;background:rgba(14,20,32,.85);border:1.5px solid var(--border);border-radius:10px;
+  padding:10px 12px;font-family:var(--mono);font-size:14px;font-weight:600;color:var(--text);
+  resize:vertical;outline:none;line-height:1.7;transition:border-color .15s,box-shadow .15s}
+#mtxt:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--glow)}
+#mtxt::placeholder{color:#2a3a54;font-weight:400}
+.thint{font-size:10px;color:var(--muted);margin-top:5px;line-height:1.5}
+.thint code{font-family:var(--mono);color:var(--accent);font-size:10px}
+#perr{font-size:11px;color:var(--red);margin-top:5px;display:none}
+/* ── UNDO/REDO ── */
+.undo-row{display:flex;gap:6px;margin-bottom:8px}
+.undo-btn{padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid var(--border);
+  background:rgba(14,20,32,.7);color:var(--muted);cursor:pointer;transition:all .15s}
+.undo-btn:hover:not(:disabled){color:var(--accent);border-color:var(--accent)}
+.undo-btn:disabled{opacity:.3;cursor:default}
+/* ── FUNCTIONS ── */
+.fn-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:6px}
+.fn-btn{padding:7px 5px;border-radius:9px;border:1px solid var(--border);background:rgba(14,20,32,.7);
+  color:var(--muted);font-size:11px;font-weight:600;font-family:var(--mono);cursor:pointer;transition:all .15s;text-align:center}
+.fn-btn:hover,.fn-btn.on{border-color:var(--accent);color:var(--accent);background:rgba(59,130,246,.1)}
+.fn-btn.on{box-shadow:0 0 8px var(--glow)}
+.fn-custom{display:flex;gap:7px;margin-top:10px;align-items:center}
+#fn-input{flex:1;background:rgba(14,20,32,.85);border:1.5px solid var(--border);border-radius:9px;
+  padding:7px 11px;font-family:var(--mono);font-size:13px;color:var(--text);outline:none;transition:border-color .15s}
+#fn-input:focus{border-color:var(--accent)}
+#fn-input::placeholder{color:#2a3a54}
+.fn-add{padding:7px 13px;border-radius:9px;background:var(--accent);border:none;color:#fff;
+  font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+.fn-add:active{transform:scale(.97)}
+.active-fns{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}
+.fn-tag{display:flex;align-items:center;gap:4px;padding:4px 9px;border-radius:20px;
+  font-family:var(--mono);font-size:11px;font-weight:600;border:1px solid;transition:all .15s}
+.fn-tag .rm{opacity:.5;font-size:13px;line-height:1;cursor:pointer}
+.fn-tag:hover .rm{opacity:1}
+.fn-deriv-toggle{font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid;background:transparent;cursor:pointer;margin-left:2px;opacity:.6;font-weight:700}
+.fn-deriv-toggle.on{opacity:1}
+/* ── EXAMPLES ── */
+.exrow{display:flex;gap:7px;flex-wrap:wrap}
+.ex{padding:6px 11px;border-radius:8px;font-size:12px;font-weight:500;border:1px solid var(--border);
+  background:rgba(14,20,32,.6);color:var(--muted);cursor:pointer;transition:all .15s;white-space:nowrap}
+.ex:hover,.ex:active{border-color:var(--accent);color:var(--accent);background:rgba(59,130,246,.08)}
+/* ── VIZ BTN ── */
+.vbtn{width:100%;padding:13px;background:var(--accent);border:none;border-radius:12px;color:#fff;
+  font-family:var(--sans);font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;
+  justify-content:center;gap:8px;transition:all .15s;box-shadow:0 4px 20px var(--glow)}
+.vbtn:active{transform:scale(.98)}
+/* ── GRAPH AREA ── */
+.gcard{padding:0}
+.gtop{display:flex;align-items:center;border-bottom:1px solid var(--border);overflow:hidden}
+.gtabs{display:flex;overflow-x:auto;scrollbar-width:none;flex:1}
+.gtabs::-webkit-scrollbar{display:none}
+.tab{padding:9px 10px;font-size:10px;font-weight:600;color:var(--muted);cursor:pointer;
+  border-bottom:2px solid transparent;white-space:nowrap;background:none;
+  border-left:none;border-right:none;border-top:none;transition:all .15s;flex-shrink:0}
+.tab.on{color:var(--accent);border-bottom-color:var(--accent)}
+.fsbtn{flex-shrink:0;margin:0 6px;width:28px;height:28px;border-radius:7px;
+  background:rgba(14,20,32,.8);border:1px solid var(--border);color:var(--muted);
+  font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.fsbtn:hover{color:var(--accent);border-color:var(--accent)}
+.canvas-wrap{position:relative;overflow:hidden}
+canvas#graph{display:block;width:100%;touch-action:none;cursor:crosshair}
+/* crosshair tooltip */
+#crosshair-tip{position:absolute;pointer-events:none;display:none;
+  background:rgba(14,20,32,.93);border:1px solid var(--border);border-radius:7px;
+  padding:5px 9px;font-family:var(--mono);font-size:11px;color:var(--text);
+  box-shadow:0 4px 16px rgba(0,0,0,.5);white-space:nowrap;z-index:10}
+/* ── ROT CONTROLS ── */
+.rot-controls{display:flex;flex-direction:column;gap:9px;padding:9px 12px;
+  border-top:1px solid var(--border);background:rgba(14,20,32,.55)}
+.rot-row{display:flex;align-items:center;gap:9px}
+.rot-label{font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap;min-width:48px}
+.rot-val{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--accent);min-width:38px;text-align:right}
+input[type=range].rot-slider{flex:1;-webkit-appearance:none;appearance:none;height:4px;border-radius:4px;
+  background:linear-gradient(to right,var(--accent) var(--pct,0%),#1e2d42 var(--pct,0%));outline:none;cursor:pointer}
+input[type=range].rot-slider::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;
+  border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--glow);cursor:pointer}
+input[type=range].rot-slider::-moz-range-thumb{width:15px;height:15px;border-radius:50%;
+  background:var(--accent);border:none}
+.rot-btns{display:flex;gap:6px;flex-wrap:wrap}
+.rot-btn{padding:5px 12px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;
+  transition:all .15s;border:1px solid var(--border);background:rgba(14,20,32,.7);color:var(--muted)}
+.rot-btn.on{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 0 10px var(--glow)}
+.rot-btn:active{transform:scale(.97)}
+/* ── FULLSCREEN ── */
+#fso{display:none;position:fixed;inset:0;z-index:999;background:#080b12;
+  background-image:
+    linear-gradient(rgba(59,130,246,.07) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(59,130,246,.07) 1px,transparent 1px),
+    linear-gradient(rgba(59,130,246,.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(59,130,246,.03) 1px,transparent 1px);
+  background-size:80px 80px,80px 80px,20px 20px,20px 20px;
+  flex-direction:column}
+#fso.open{display:flex}
+.fshdr{display:flex;align-items:center;padding:8px 14px;border-bottom:1px solid var(--border);
+  background:rgba(14,20,32,.95);backdrop-filter:blur(12px);flex-shrink:0;gap:6px}
+.fstabs{display:flex;overflow-x:auto;scrollbar-width:none;flex:1}
+.fstabs::-webkit-scrollbar{display:none}
+.fstab{padding:7px 10px;font-size:10px;font-weight:600;color:var(--muted);cursor:pointer;
+  border-bottom:2px solid transparent;white-space:nowrap;background:none;
+  border-left:none;border-right:none;border-top:none;transition:all .15s}
+.fstab.on{color:var(--accent);border-bottom-color:var(--accent)}
+.fsclose{width:30px;height:30px;border-radius:8px;background:rgba(30,45,66,.9);border:1px solid var(--border);
+  color:var(--text);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;transition:all .15s}
+.fsclose:hover{background:var(--red);border-color:var(--red);color:#fff}
+.fs-canvas-wrap{flex:1;position:relative;overflow:hidden}
+#fsc{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}
+#fs-crosshair-tip{position:absolute;pointer-events:none;display:none;
+  background:rgba(14,20,32,.93);border:1px solid var(--border);border-radius:7px;
+  padding:5px 9px;font-family:var(--mono);font-size:11px;color:var(--text);
+  box-shadow:0 4px 16px rgba(0,0,0,.5);white-space:nowrap;z-index:10}
+/* ── TOAST ── */
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);
+  background:rgba(20,30,46,.97);backdrop-filter:blur(8px);border:1px solid var(--border);
+  border-radius:10px;padding:8px 16px;font-size:13px;color:var(--text);z-index:1001;
+  transition:transform .25s ease;pointer-events:none;white-space:nowrap}
+#toast.show{transform:translateX(-50%) translateY(0)}
+/* ── BOOKMARKS OVERLAY ── */
+.bm-overlay{display:none;position:fixed;inset:0;z-index:1100;background:rgba(0,0,0,.6);
+  backdrop-filter:blur(4px);align-items:flex-end;justify-content:center}
+.bm-overlay.open{display:flex}
+.bm-panel{background:var(--surface);border:1px solid var(--border);border-radius:16px 16px 0 0;
+  width:100%;max-width:480px;max-height:70vh;display:flex;flex-direction:column;
+  animation:bmUp .2s ease}
+@keyframes bmUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+.bm-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border)}
+.bm-list{flex:1;overflow-y:auto;padding:8px}
+.bm-item{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;
+  border-radius:10px;cursor:pointer;transition:background .15s;margin-bottom:4px}
+.bm-item:hover{background:rgba(59,130,246,.08)}
+.bm-name{font-size:13px;font-weight:600;color:var(--text)}
+.bm-meta{font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:2px}
+.bm-del{width:26px;height:26px;border-radius:6px;background:transparent;border:1px solid var(--border);
+  color:var(--muted);cursor:pointer;font-size:13px;flex-shrink:0}
+.bm-del:hover{color:var(--red);border-color:var(--red)}
+/* ── KEYBOARD SHORTCUT HINT ── */
+.kb-hint{font-size:10px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
+.kb{font-family:var(--mono);background:rgba(30,45,66,.6);border:1px solid var(--border);
+  border-radius:4px;padding:1px 5px;font-size:10px;color:var(--accent)}
+/* ── PARAMETRIC ── */
+.param-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.param-label{font-family:var(--mono);font-size:11px;color:var(--muted);min-width:36px}
+.param-input{flex:1;background:rgba(14,20,32,.85);border:1.5px solid var(--border);border-radius:8px;
+  padding:6px 10px;font-family:var(--mono);font-size:12px;color:var(--text);outline:none}
+.param-input:focus{border-color:var(--purple);box-shadow:0 0 0 3px rgba(139,92,246,.2)}
+/* ── DESKTOP ── */
+@media(min-width:720px){
+  .main{flex-direction:row;flex-wrap:wrap;max-width:100%;padding:16px;gap:16px;align-content:flex-start}
+  .lc{flex:1;min-width:270px;display:flex;flex-direction:column;gap:12px}
+  .rc{flex:1.6;min-width:340px;display:flex;flex-direction:column;gap:12px}
+}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-icon">⊞</div>
+  <div><div class="hdr-title">Matrix Visualizer</div><div class="hdr-sub">Matrix · Functions · Infinite Graph</div></div>
+  <div class="hdr-right">
+    <button class="hdr-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle light/dark">🌙</button>
+    <button class="hdr-btn" onclick="openBookmarks()" title="Saved views">⭐ Views</button>
+    <button class="hdr-btn" onclick="exportPNG()" title="Export graph as PNG">⬇ PNG</button>
+    <button class="hdr-btn" onclick="copyShareURL()" title="Copy shareable URL">🔗 Share</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="lc">
+
+    <!-- SIZE + MODE -->
+    <div class="card">
+      <div class="ch">
+        <span class="cl">Matrix Size</span>
+        <div class="pill">
+          <button class="pill-btn on" id="b-grid" onclick="setMode('grid')">Grid</button>
+          <button class="pill-btn"    id="b-text" onclick="setMode('text')">Text</button>
+        </div>
+      </div>
+      <div class="cb" style="padding-bottom:9px">
+        <div class="sbrow" id="sbrow">
+          <button class="sb on"  onclick="setSize(1,2)">1×2</button>
+          <button class="sb"     onclick="setSize(2,2)">2×2</button>
+          <button class="sb"     onclick="setSize(2,3)">2×3</button>
+          <button class="sb"     onclick="setSize(3,3)">3×3</button>
+          <button class="sb"     onclick="setSize(4,4)">4×4</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MATRIX INPUT -->
+    <div class="card">
+      <div class="ch">
+        <span class="cl">Your Matrix</span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <button class="undo-btn" id="btn-undo" onclick="undo()" disabled title="Undo (Ctrl+Z)">↩ Undo</button>
+          <button class="undo-btn" id="btn-redo" onclick="redo()" disabled title="Redo (Ctrl+Y)">↪ Redo</button>
+          <button class="ex" onclick="clearMx()" style="margin:0">Clear</button>
+        </div>
+      </div>
+      <div class="cb">
+        <div id="grid-mode">
+          <div class="mx-disp"><span class="bracket">[</span><div class="gw" id="grid"></div><span class="bracket">]</span></div>
+          <div class="area-bar" id="area-bar" style="display:none">
+            <div class="area-rect" id="area-rect"></div>
+            <div>
+              <div class="area-label">Det / Area Scale</div>
+              <div class="area-val" id="area-val">—</div>
+            </div>
+          </div>
+        </div>
+        <div id="text-mode" style="display:none">
+          <textarea id="mtxt" placeholder="Type rows — one per line&#10;e.g.  1  -2  3.14&#10;      0   1  -0.5"></textarea>
+          <div id="perr"></div>
+          <div class="thint">Rows separated by <strong>newlines</strong>, values by spaces or commas.<br>
+            Examples: <code>1 2 3</code> · <code>-3.14, 0.5</code> · <code>0 -1</code></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FUNCTIONS -->
+    <div class="card">
+      <div class="ch">
+        <span class="cl">Functions</span>
+        <span id="fn-count" style="font-size:10px;color:var(--accent)"></span>
+      </div>
+      <div class="cb">
+        <div class="fn-grid" id="fn-presets"></div>
+        <div class="fn-custom">
+          <input id="fn-input" placeholder="Custom: x*sin(x)  or  x^2-4" />
+          <button class="fn-add" onclick="addCustomFn()">+ Add</button>
+        </div>
+        <div class="active-fns" id="active-fns"></div>
+      </div>
+    </div>
+
+    <!-- PARAMETRIC (for rotation tab) -->
+    <div class="card" id="param-card" style="display:none">
+      <div class="ch"><span class="cl">Parametric Curve (t)</span>
+        <span style="font-size:10px;color:var(--purple)">Rotation tab</span>
+      </div>
+      <div class="cb">
+        <div class="param-row"><span class="param-label">x(t) =</span><input class="param-input" id="px-input" placeholder="cos(t)" value="cos(t)"></div>
+        <div class="param-row"><span class="param-label">y(t) =</span><input class="param-input" id="py-input" placeholder="sin(t)" value="sin(t)"></div>
+        <div class="param-row">
+          <span class="param-label">t range</span>
+          <input class="param-input" id="pt-min" placeholder="-π" value="-6.28" style="max-width:60px">
+          <span style="color:var(--muted);font-size:12px">to</span>
+          <input class="param-input" id="pt-max" placeholder="π" value="6.28" style="max-width:60px">
+        </div>
+        <button class="rot-btn on" style="margin-top:6px;width:100%" onclick="toggleParam()">Enable Parametric</button>
+      </div>
+    </div>
+
+    <!-- GRAPH TOOLS -->
+    <div class="card" id="gtools-card">
+      <div class="ch"><span class="cl">Graph Tools</span><span style="font-size:10px;color:var(--accent)">Graph tab</span></div>
+      <div class="cb">
+        <div class="rot-btns" style="margin-bottom:10px">
+          <button class="rot-btn" id="btn-roots" onclick="toggleRoots()">● Roots</button>
+          <button class="rot-btn" id="btn-critical" onclick="toggleCritical()">▲▼ Critical pts</button>
+          <button class="rot-btn" id="btn-area" onclick="toggleAreaMode()">▦ Select area</button>
+        </div>
+        <div id="taylor-box" style="border-top:1px solid var(--border);padding-top:10px;margin-top:4px">
+          <div class="rot-row" style="margin-bottom:8px">
+            <span class="rot-label">Taylor</span>
+            <button class="rot-btn" id="btn-taylor" onclick="toggleTaylor()" style="flex:1">Enable</button>
+          </div>
+          <div class="rot-row">
+            <span class="rot-label">Order n</span>
+            <input type="range" class="rot-slider" id="taylor-n" min="0" max="10" step="1" value="3" oninput="onTaylorN(this)">
+            <span class="rot-val" id="taylor-n-val">3</span>
+          </div>
+          <div class="rot-row">
+            <span class="rot-label">Center a</span>
+            <input type="range" class="rot-slider" id="taylor-a" min="-5" max="5" step="0.1" value="0" oninput="onTaylorA(this)">
+            <span class="rot-val" id="taylor-a-val">0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MATRIX OPS -->
+    <div class="card">
+      <div class="ch"><span class="cl">Matrix Operations</span></div>
+      <div class="cb">
+        <div class="rot-btns" style="margin-bottom:10px">
+          <button class="rot-btn" id="btn-inverse" onclick="toggleInverse()">A⁻¹ Inverse</button>
+          <button class="rot-btn" id="btn-eigen" onclick="toggleEigen()">↗ Eigenvectors</button>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:6px">Multiply: A · B (shown in Transform tab)</div>
+        <div class="mx-disp" style="margin-bottom:8px">
+          <span class="bracket" style="font-size:32px">[</span>
+          <div class="gw" id="grid-b" style="gap:4px"></div>
+          <span class="bracket" style="font-size:32px">]</span>
+        </div>
+        <button class="rot-btn" style="width:100%" onclick="applyMultiply()">Compute A·B</button>
+      </div>
+    </div>
+
+    <!-- TRANSFORM ANIMATION -->
+    <div class="card" id="tanim-card" style="display:none">
+      <div class="ch"><span class="cl">Morph Animation</span><span style="font-size:10px;color:var(--accent)">Transform tab</span></div>
+      <div class="cb">
+        <div class="rot-row">
+          <span class="rot-label">Identity→A</span>
+          <input type="range" class="rot-slider" id="tanim-slider" min="0" max="1" step="0.01" value="1" oninput="onTAnimSlider(this)">
+          <span class="rot-val" id="tanim-val">100%</span>
+        </div>
+        <div class="rot-btns" style="margin-top:8px">
+          <button class="rot-btn" id="btn-tanim-play" onclick="toggleTransformAnim()">▶ Play morph</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- EXAMPLES -->
+    <div class="card">
+      <div class="ch"><span class="cl">Matrix Examples</span></div>
+      <div class="cb">
+        <div class="exrow">
+          <button class="ex" onclick="loadEx('rotate')">🔄 Rotation</button>
+          <button class="ex" onclick="loadEx('scale')">⬜ Scale</button>
+          <button class="ex" onclick="loadEx('shear')">◇ Shear</button>
+          <button class="ex" onclick="loadEx('reflect')">↔ Reflect</button>
+          <button class="ex" onclick="loadEx('identity')">⊙ Identity</button>
+          <button class="ex" onclick="loadEx('project')">⬡ Project</button>
+          <button class="ex" onclick="loadEx('random')">🎲 Random</button>
+        </div>
+      </div>
+    </div>
+
+    <button class="vbtn" onclick="onViz()">▶ &nbsp;Visualize</button>
+    <div class="kb-hint">
+      <span><span class="kb">Space</span> Play/Pause</span>
+      <span><span class="kb">R</span> Reset view</span>
+      <span><span class="kb">+/-</span> Zoom</span>
+      <span><span class="kb">Ctrl+Z</span> Undo</span>
+    </div>
+  </div>
+
+  <div class="rc">
+    <div class="card gcard">
+      <div class="gtop">
+        <div class="gtabs" id="gtabs">
+          <button class="tab on"  onclick="switchTab('graph',event)">📈 Graph</button>
+          <button class="tab"     onclick="switchTab('rotation',event)">🔄 Rotation</button>
+          <button class="tab"     onclick="switchTab('transform',event)">⬡ Transform</button>
+          <button class="tab"     onclick="switchTab('heatmap',event)">🌡 Heatmap</button>
+          <button class="tab"     onclick="switchTab('vectors',event)">↗ Vectors</button>
+          <button class="tab"     onclick="switchTab('bars',event)">▦ Bars</button>
+          <button class="tab"     onclick="switchTab('field',event)">🌊 Field</button>
+          <button class="tab"     onclick="switchTab('circle',event)">⭕ Circle</button>
+        </div>
+        <button class="fsbtn" onclick="openFs()">⛶</button>
+      </div>
+      <div class="canvas-wrap" id="canvas-wrap">
+        <canvas id="graph"></canvas>
+        <div id="crosshair-tip"></div>
+      </div>
+      <!-- ROTATION CONTROLS -->
+      <div class="rot-controls" id="rot-panel" style="display:none">
+        <div class="rot-row">
+          <span class="rot-label">Angle</span>
+          <input type="range" class="rot-slider" id="rot-slider" min="0" max="360" step="0.5" value="0" oninput="onRotSlider(this)">
+          <span class="rot-val" id="rot-deg">0°</span>
+        </div>
+        <div class="rot-row">
+          <span class="rot-label">Speed</span>
+          <input type="range" class="rot-slider" id="spd-slider" min="0.2" max="5" step="0.1" value="1" oninput="onSpdSlider(this)">
+          <span class="rot-val" id="spd-val">1×</span>
+        </div>
+        <div class="rot-row" style="justify-content:space-between;flex-wrap:wrap;gap:6px">
+          <div class="rot-btns">
+            <button class="rot-btn" id="btn-play" onclick="toggleAnim()">▶ Play</button>
+            <button class="rot-btn" onclick="resetRot()">↺ Reset</button>
+          </div>
+          <div class="rot-btns">
+            <button class="rot-btn on" id="btn-rvec"   onclick="toggleRL('vectors')">Vectors</button>
+            <button class="rot-btn"    id="btn-rcirc"  onclick="toggleRL('circle')">Circle</button>
+            <button class="rot-btn on" id="btn-rfns"   onclick="toggleRL('fns')">Functions</button>
+            <button class="rot-btn"    id="btn-rtrail" onclick="toggleRL('trail')">Trail</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- BOOKMARKS OVERLAY -->
+<div id="bm-overlay" class="bm-overlay">
+  <div class="bm-panel">
+    <div class="bm-head">
+      <span class="cl">Saved Views</span>
+      <button class="fsclose" onclick="closeBookmarks()" style="width:28px;height:28px;font-size:13px">✕</button>
+    </div>
+    <div id="bm-list" class="bm-list"></div>
+    <button class="vbtn" style="margin:12px" onclick="saveBookmark()">⭐ Save current view</button>
+  </div>
+</div>
+
+<!-- FULLSCREEN -->
+<div id="fso">
+  <div class="fshdr">
+    <div class="fstabs">
+      <button class="fstab on"  onclick="switchFsTab('graph',event)">📈 Graph</button>
+      <button class="fstab"     onclick="switchFsTab('rotation',event)">🔄 Rotation</button>
+      <button class="fstab"     onclick="switchFsTab('transform',event)">⬡ Transform</button>
+      <button class="fstab"     onclick="switchFsTab('heatmap',event)">🌡 Heatmap</button>
+      <button class="fstab"     onclick="switchFsTab('vectors',event)">↗ Vectors</button>
+      <button class="fstab"     onclick="switchFsTab('bars',event)">▦ Bars</button>
+      <button class="fstab"     onclick="switchFsTab('field',event)">🌊 Field</button>
+      <button class="fstab"     onclick="switchFsTab('circle',event)">⭕ Circle</button>
+    </div>
+    <button class="rot-btn on" id="fs-play-btn" style="display:none" onclick="toggleAnim()">▶ Play</button>
+    <button class="fsclose" onclick="closeFs()">✕</button>
+  </div>
+  <div class="fs-canvas-wrap">
+    <canvas id="fsc"></canvas>
+    <div id="fs-crosshair-tip"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════
+let rows=1,cols=2,matrix=[[1,0]];
+let activeTab='graph',inputMode='grid',hasViz=false;
+const COLORS=['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6','#f97316','#a78bfa','#34d399'];
+
+// Canvas refs
+const canvas=document.getElementById('graph'),ctx=canvas.getContext('2d');
+const fsc=document.getElementById('fsc'),fsCtx=fsc.getContext('2d');
+const fso=document.getElementById('fso');
+let fsOpen=false;
+
+// ── Camera (infinite pan/zoom via vx,vy,ppu) ──
+const cam={
+  small:{vx:0,vy:0,ppu:60},
+  fs:   {vx:0,vy:0,ppu:60},
+};
+function resetCam(w){cam[w].vx=0;cam[w].vy=0;cam[w].ppu=60;}
+function toSX(dx,cw,c){return cw/2+(dx-c.vx)*c.ppu;}
+function toSY(dy,ch,c){return ch/2-(dy-c.vy)*c.ppu;}
+function toDX(sx,cw,c){return c.vx+(sx-cw/2)/c.ppu;}
+function toDY(sy,ch,c){return c.vy-(sy-ch/2)/c.ppu;}
+
+// ── Undo / Redo ──
+const undoStack=[], redoStack=[];
+function pushUndo(){
+  undoStack.push(JSON.stringify(matrix));
+  if(undoStack.length>40)undoStack.shift();
+  redoStack.length=0;
+  updUndoBtns();
+}
+function undo(){
+  if(!undoStack.length)return;
+  redoStack.push(JSON.stringify(matrix));
+  matrix=JSON.parse(undoStack.pop());
+  rows=matrix.length;cols=matrix[0].length;
+  if(inputMode==='grid')buildGrid();else mxToText();
+  if(hasViz)triggerTransition();updUndoBtns();updateAreaIndicator();
+}
+function redo(){
+  if(!redoStack.length)return;
+  undoStack.push(JSON.stringify(matrix));
+  matrix=JSON.parse(redoStack.pop());
+  rows=matrix.length;cols=matrix[0].length;
+  if(inputMode==='grid')buildGrid();else mxToText();
+  if(hasViz)triggerTransition();updUndoBtns();updateAreaIndicator();
+}
+function updUndoBtns(){
+  document.getElementById('btn-undo').disabled=!undoStack.length;
+  document.getElementById('btn-redo').disabled=!redoStack.length;
+}
+
+// ── Functions ──
+const FN_PRESETS=[
+  {label:'sin(x)',  expr:'Math.sin(x)',       color:'#10b981'},
+  {label:'cos(x)',  expr:'Math.cos(x)',       color:'#3b82f6'},
+  {label:'tan(x)',  expr:'Math.tan(x)',       color:'#f59e0b'},
+  {label:'eˣ',      expr:'Math.exp(x)',       color:'#ef4444'},
+  {label:'ln(x)',   expr:'Math.log(x)',       color:'#8b5cf6'},
+  {label:'x²',      expr:'x*x',              color:'#ec4899'},
+  {label:'x³',      expr:'x*x*x',            color:'#14b8a6'},
+  {label:'|x|',     expr:'Math.abs(x)',       color:'#f97316'},
+  {label:'1/x',     expr:'1/x',              color:'#a78bfa'},
+  {label:'√x',      expr:'Math.sqrt(x)',      color:'#34d399'},
+  {label:'x·sin(x)',expr:'x*Math.sin(x)',     color:'#60a5fa'},
+  {label:'σ(x)',    expr:'1/(1+Math.exp(-x))',color:'#fbbf24'},
+];
+let activeFns=[]; // {label,expr,color,fn,showDeriv}
+
+// ── Rotation ──
+let rotAngle=0,rotSpeed=1,rotAnim=false,rotRAF=null;
+let rotLayers={vectors:true,circle:false,fns:true,trail:false};
+let rotTrail=[]; // array of angles for ghost trail
+
+// ── Parametric ──
+let paramEnabled=false;
+let paramFnX=null,paramFnY=null;
+
+// ── Crosshair ──
+let crosshairPos=null; // {x,y} in data coords
+let pinned=[];         // [{x,y,fn}] — clicked pins
+
+// ── Transition animation system ──
+let animProgress=1;      // 0→1, how far into the current transition
+let animPrev=null;       // snapshot of previous canvas pixels (for crossfade)
+let animRAF2=null;       // rAF handle for transition
+let animDuration=420;    // ms for a full transition
+let animStart=0;
+let animFloatT=0;        // ever-incrementing float time (for breathing effect)
+let animFloatRAF=null;   // rAF handle for float loop
+
+// per-function reveal progress: label→{progress 0→1, start timestamp}
+const fnReveal={};
+
+// ── Graph intelligence toggles ──
+let showRoots=false, showCritical=false;
+let areaSel=null;         // {x1,x2} selected range for integration
+let areaSelecting=false;  // currently dragging a selection
+let taylorEnabled=false, taylorOrder=3, taylorCenter=0;
+
+// ── Theme ──
+let isLight=false;
+
+// ── Bookmarks ──
+let bookmarks=JSON.parse(localStorage.getItem('mv_bookmarks')||'[]'); // safe fallback if storage blocked
+
+// ── Vector field (2x2 matrix flow) ──
+let fieldDensity=12;
+
+// ── Matrix ops: multiply / inverse / eigen ──
+let matrixB=[[1,0],[0,1]]; // second matrix for multiplication
+let showInverse=false, showEigen=false;
+
+// ── Transform animation ──
+let transformAnimT=1; // 0=identity,1=full matrix
+let transformAnimating=false, transformRAF=null;
+
+// ─────────────────────────────────────────────────
+//  INPUT MODE
+// ─────────────────────────────────────────────────
+function setMode(m){
+  inputMode=m;
+  document.getElementById('grid-mode').style.display=m==='grid'?'':'none';
+  document.getElementById('text-mode').style.display=m==='text'?'':'none';
+  document.getElementById('b-grid').classList.toggle('on',m==='grid');
+  document.getElementById('b-text').classList.toggle('on',m==='text');
+  document.getElementById('sbrow').style.display=m==='grid'?'':'none';
+  if(m==='text')mxToText();
+}
+function mxToText(){document.getElementById('mtxt').value=matrix.map(r=>r.join('  ')).join('\n');}
+function parseTxt(){
+  const raw=document.getElementById('mtxt').value.trim();
+  const pe=document.getElementById('perr');
+  if(!raw){pe.style.display='none';return null;}
+  try{
+    const lines=raw.split('\n').map(l=>l.trim()).filter(Boolean);
+    const parsed=lines.map((line,li)=>{
+      const vals=line.split(/[\s,]+/).filter(Boolean).map((v,ci)=>{
+        const n=parseFloat(v);
+        if(isNaN(n))throw new Error(`Row ${li+1} col ${ci+1}: "${v}" is not a number`);
+        return n;
+      });
+      if(!vals.length)throw new Error(`Row ${li+1} is empty`);
+      return vals;
+    });
+    const len=parsed[0].length;
+    parsed.forEach((r,i)=>{if(r.length!==len)throw new Error(`Row ${i+1} has ${r.length} values, expected ${len}`);});
+    pe.style.display='none';return parsed;
+  }catch(e){pe.textContent='⚠ '+e.message;pe.style.display='block';return null;}
+}
+
+// ─────────────────────────────────────────────────
+//  SIZE / GRID
+// ─────────────────────────────────────────────────
+function setSize(r,c){
+  pushUndo();
+  rows=r;cols=c;
+  document.querySelectorAll('.sb').forEach(b=>b.classList.toggle('on',b.textContent===`${r}×${c}`));
+  matrix=Array.from({length:r},(_,ri)=>Array.from({length:c},(_,ci)=>matrix[ri]?.[ci]??0));
+  buildGrid();updateAreaIndicator();
+}
+function buildGrid(){
+  const el=document.getElementById('grid');el.innerHTML='';
+  for(let r=0;r<rows;r++){
+    const row=document.createElement('div');row.className='gr';
+    for(let c=0;c<cols;c++){
+      const inp=document.createElement('input');
+      inp.className='cell';inp.type='number';inp.inputMode='decimal';inp.placeholder='0';inp.step='any';
+      inp.value=matrix[r][c]!==0?matrix[r][c]:'';
+      inp.dataset.r=r;inp.dataset.c=c;
+      inp.addEventListener('focus',()=>pushUndo());
+      inp.addEventListener('change',e=>{
+        matrix[+e.target.dataset.r][+e.target.dataset.c]=parseFloat(e.target.value)||0;
+        if(hasViz)triggerTransition();updateAreaIndicator();
+      });
+      inp.addEventListener('keydown',e=>{if(e.key==='Enter')onViz();});
+      row.appendChild(inp);
+    }
+    el.appendChild(row);
+  }
+  const isSquare=rows===cols;
+  document.getElementById('area-bar').style.display=isSquare&&rows<=4?'':'none';
+  if(isSquare)updateAreaIndicator();
+}
+function readGrid(){document.querySelectorAll('#grid .cell').forEach(inp=>{matrix[+inp.dataset.r][+inp.dataset.c]=parseFloat(inp.value)||0;});}
+function clearMx(){
+  pushUndo();
+  if(inputMode==='grid'){document.querySelectorAll('#grid .cell').forEach(i=>i.value='');matrix=Array.from({length:rows},()=>Array(cols).fill(0));}
+  else{document.getElementById('mtxt').value='';document.getElementById('perr').style.display='none';matrix=[[0,0]];}
+  if(hasViz)triggerTransition();updateAreaIndicator();
+}
+
+// ── Determinant / Area indicator ──
+function detM(M){
+  const n=M.length;
+  if(n===1)return M[0][0];
+  if(n===2)return M[0][0]*M[1][1]-M[0][1]*M[1][0];
+  let d=0;
+  for(let j=0;j<n;j++){const mn=M.slice(1).map(r=>[...r.slice(0,j),...r.slice(j+1)]);d+=((j%2===0)?1:-1)*M[0][j]*detM(mn);}
+  return d;
+}
+function updateAreaIndicator(){
+  if(rows!==cols||rows>4)return;
+  const d=detM(matrix);
+  const el=document.getElementById('area-val');
+  const rect=document.getElementById('area-rect');
+  el.textContent=fmt(d);
+  const absD=Math.abs(d);
+  const color=absD<0.001?'#ef4444':absD<0.5?'#f59e0b':'#10b981';
+  el.style.color=color;
+  rect.style.borderColor=color;
+  rect.style.background=color+'20';
+  const s=Math.min(Math.max(Math.sqrt(absD)*14,4),26);
+  rect.style.width=s+'px';rect.style.height=s+'px';
+}
+
+// ─────────────────────────────────────────────────
+//  EXAMPLES
+// ─────────────────────────────────────────────────
+const EXS={
+  rotate:{vals:[[0.707,-0.707],[0.707,0.707]],name:'45° Rotation'},
+  scale:{vals:[[2,0],[0,2]],name:'2× Scale'},
+  shear:{vals:[[1,1],[0,1]],name:'Shear'},
+  reflect:{vals:[[-1,0],[0,1]],name:'X Reflection'},
+  identity:{vals:[[1,0],[0,1]],name:'Identity'},
+  project:{vals:[[1,0],[0,0]],name:'Projection'},
+  random:null,
+};
+function loadEx(k){
+  let ex=EXS[k];
+  if(!ex){const r=()=>Math.round((Math.random()*6-3)*100)/100;ex={vals:[[r(),r()],[r(),r()]],name:'Random'};}
+  pushUndo();
+  matrix=ex.vals.map(r=>[...r]);rows=matrix.length;cols=matrix[0].length;
+  document.querySelectorAll('.sb').forEach(b=>b.classList.toggle('on',b.textContent===`${rows}×${cols}`));
+  if(inputMode==='grid')buildGrid();else mxToText();
+  onViz();updateAreaIndicator();toast('✦ '+ex.name);
+}
+
+// ─────────────────────────────────────────────────
+//  FUNCTIONS
+// ─────────────────────────────────────────────────
+function buildPresets(){
+  const el=document.getElementById('fn-presets');el.innerHTML='';
+  FN_PRESETS.forEach((p,i)=>{
+    const b=document.createElement('button');b.className='fn-btn';b.textContent=p.label;
+    b.onclick=()=>togglePreset(i,b);el.appendChild(b);
+  });
+}
+function togglePreset(i,btn){
+  const p=FN_PRESETS[i];
+  const idx=activeFns.findIndex(f=>f.label===p.label);
+  if(idx>=0){
+    activeFns.splice(idx,1);btn.classList.remove('on');
+    delete fnReveal[p.label];
+    triggerTransition();
+  } else {
+    try{
+      const fn=makeFn(p.expr);fn(1);
+      activeFns.push({label:p.label,expr:p.expr,color:p.color,fn,showDeriv:false});
+      btn.classList.add('on');
+      startFnReveal(p.label);
+    }catch(e){toast('⚠ '+e.message);}
+  }
+  renderFnTags();if(!activeFns.length&&hasViz)draw();
+}
+function addCustomFn(){
+  const raw=document.getElementById('fn-input').value.trim();
+  if(!raw){toast('Enter a function expression');return;}
+  const safeExpr=sanitizeExpr(raw);
+  try{
+    const fn=makeFn(safeExpr);const test=fn(1);
+    if(typeof test!=='number')throw new Error('must return a number');
+    const color=COLORS[activeFns.length%COLORS.length];
+    activeFns.push({label:raw,expr:safeExpr,color,fn,showDeriv:false});
+    document.getElementById('fn-input').value='';
+    renderFnTags();setTab('graph');
+    if(!hasViz){hasViz=true;resizeCv();}
+    startFnReveal(raw);
+    toast('✦ Added: '+raw);
+  }catch(e){toast('⚠ Invalid: '+e.message);}
+}
+function removeFn(i){
+  const removed=activeFns.splice(i,1)[0];
+  delete fnReveal[removed.label];
+  document.querySelectorAll('.fn-btn').forEach((b,pi)=>{if(FN_PRESETS[pi]?.label===removed.label)b.classList.remove('on');});
+  renderFnTags();triggerTransition();
+}
+function toggleDeriv(i){
+  activeFns[i].showDeriv=!activeFns[i].showDeriv;
+  renderFnTags();triggerTransition();
+}
+function renderFnTags(){
+  const el=document.getElementById('active-fns');el.innerHTML='';
+  activeFns.forEach((f,i)=>{
+    const tag=document.createElement('div');tag.className='fn-tag';
+    tag.style.cssText=`color:${f.color};border-color:${f.color}44;background:${f.color}11`;
+    tag.innerHTML=`<span>${f.label}</span>`+
+      `<button class="fn-deriv-toggle ${f.showDeriv?'on':''}" style="color:${f.color};border-color:${f.color}" onclick="toggleDeriv(${i})" title="Show derivative">f'</button>`+
+      `<span class="rm" onclick="removeFn(${i})">✕</span>`;
+    el.appendChild(tag);
+  });
+  document.getElementById('fn-count').textContent=activeFns.length?`${activeFns.length} active`:'';
+}
+function makeFn(expr){
+  return new Function('x',`"use strict";try{return(${expr});}catch(e){return NaN;}`);
+}
+function sanitizeExpr(raw){
+  return raw.replace(/\^/g,'**')
+    .replace(/\bsin\b/g,'Math.sin').replace(/\bcos\b/g,'Math.cos')
+    .replace(/\btan\b/g,'Math.tan').replace(/\bexp\b/g,'Math.exp')
+    .replace(/\bsqrt\b/g,'Math.sqrt').replace(/\babs\b/g,'Math.abs')
+    .replace(/\bln\b/g,'Math.log').replace(/\blog10\b/g,'Math.log10')
+    .replace(/\blog\b/g,'Math.log').replace(/\bPI\b/g,'Math.PI').replace(/\bE\b/g,'Math.E');
+}
+function derivative(fn,x){const h=1e-5;return(fn(x+h)-fn(x-h))/(2*h);}
+function findRoots(fn,xMin,xMax,steps=600){
+  const roots=[];let prev=null,prevX=null;
+  for(let i=0;i<=steps;i++){
+    const x=xMin+(xMax-xMin)*i/steps,y=fn(x);
+    if(!isFinite(y)){prev=null;continue;}
+    if(prev!==null&&Math.sign(y)!==Math.sign(prev)&&Math.sign(prev)!==0){
+      let lo=prevX,hi=x;
+      for(let k=0;k<25;k++){const mid=(lo+hi)/2;const my=fn(mid);Math.sign(my)===Math.sign(fn(lo))?lo=mid:hi=mid;}
+      const rx=(lo+hi)/2;
+      // snap near-zero to zero
+      roots.push(Math.abs(rx)<1e-6?0:rx);
+    }
+    prev=y;prevX=x;
+  }
+  return roots;
+}
+function findCriticalPoints(fn,xMin,xMax,steps=600){
+  const crits=[];let prevD=null,prevX=null;
+  for(let i=0;i<=steps;i++){
+    const x=xMin+(xMax-xMin)*i/steps,d=derivative(fn,x);
+    if(!isFinite(d)){prevD=null;continue;}
+    if(prevD!==null&&Math.sign(d)!==Math.sign(prevD)&&Math.sign(prevD)!==0){
+      let lo=prevX,hi=x;
+      for(let k=0;k<20;k++){const mid=(lo+hi)/2;Math.sign(derivative(fn,mid))===Math.sign(derivative(fn,lo))?lo=mid:hi=mid;}
+      const cx=(lo+hi)/2,cy=fn(cx);
+      const cleanX=Math.abs(cx)<1e-6?0:cx;
+      const cleanY=Math.abs(cy)<1e-6?0:cy;
+      if(isFinite(cy))crits.push({x:cleanX,y:cleanY,type:prevD>0?'max':'min'});
+    }
+    prevD=d;prevX=x;
+  }
+  return crits;
+}
+function integrate(fn,a,b,n=400){
+  let sum=0;const h=(b-a)/n;
+  for(let i=0;i<n;i++){const x0=a+i*h,x1=a+(i+1)*h;const y0=fn(x0),y1=fn(x1);if(isFinite(y0)&&isFinite(y1))sum+=(y0+y1)/2*h;}
+  return sum;
+}
+function nthDerivative(fn,x,n){
+  if(n===0)return fn(x);
+  const h=0.01;
+  if(n===1)return derivative(fn,x);
+  if(n===2)return(fn(x+h)-2*fn(x)+fn(x-h))/(h*h);
+  // higher order via repeated central difference (approximate)
+  let f=fn;
+  for(let k=0;k<n;k++){const prevF=f;f=(xx)=>(prevF(xx+h)-prevF(xx-h))/(2*h);}
+  return f(x);
+}
+function factorial(n){let r=1;for(let i=2;i<=n;i++)r*=i;return r;}
+
+// Intersections between two functions
+function findIntersections(f1,f2,xMin,xMax,steps=500){
+  const pts=[];
+  let prevSign=null;
+  for(let i=0;i<=steps;i++){
+    const x=xMin+i/steps*(xMax-xMin);
+    const diff=f1.fn(x)-f2.fn(x);
+    if(!isFinite(diff))continue;
+    const sign=Math.sign(diff);
+    if(prevSign!==null&&sign!==prevSign){
+      // bisect
+      let lo=x-1/steps*(xMax-xMin),hi=x;
+      for(let k=0;k<20;k++){const mid=(lo+hi)/2;Math.sign(f1.fn(mid)-f2.fn(mid))===prevSign?lo=mid:hi=mid;}
+      const mx=(lo+hi)/2;pts.push({x:mx,y:f1.fn(mx)});
+    }
+    prevSign=sign;
+  }
+  return pts;
+}
+
+// ─────────────────────────────────────────────────
+//  PARAMETRIC
+// ─────────────────────────────────────────────────
+function toggleParam(){
+  paramEnabled=!paramEnabled;
+  document.querySelector('#param-card button').textContent=paramEnabled?'Disable Parametric':'Enable Parametric';
+  document.querySelector('#param-card button').classList.toggle('on',paramEnabled);
+  if(paramEnabled){
+    const xe=sanitizeExpr(document.getElementById('px-input').value||'Math.cos(x)').replace(/\bx\b/g,'t');
+    const ye=sanitizeExpr(document.getElementById('py-input').value||'Math.sin(x)').replace(/\bx\b/g,'t');
+    paramFnX=new Function('t',`"use strict";try{return(${xe});}catch(e){return NaN;}`);
+    paramFnY=new Function('t',`"use strict";try{return(${ye});}catch(e){return NaN;}`);
+  }
+  if(hasViz||paramEnabled)draw();
+}
+
+// ─────────────────────────────────────────────────
+//  GRAPH TOOLS: roots / critical points / area / taylor
+// ─────────────────────────────────────────────────
+function toggleRoots(){
+  showRoots=!showRoots;
+  document.getElementById('btn-roots').classList.toggle('on',showRoots);
+  if(!activeFns.length)toast('Add a function first');
+  draw();if(fsOpen)drawFs();
+}
+function toggleCritical(){
+  showCritical=!showCritical;
+  document.getElementById('btn-critical').classList.toggle('on',showCritical);
+  if(!activeFns.length)toast('Add a function first');
+  draw();if(fsOpen)drawFs();
+}
+function toggleAreaMode(){
+  areaSelecting=!areaSelecting;
+  document.getElementById('btn-area').classList.toggle('on',areaSelecting);
+  if(areaSelecting){toast('Drag across the graph to select a range');setTab('graph');draw();}
+  else{areaSel=null;draw();if(fsOpen)drawFs();}
+}
+function toggleTaylor(){
+  taylorEnabled=!taylorEnabled;
+  document.getElementById('btn-taylor').textContent=taylorEnabled?'Disable':'Enable';
+  document.getElementById('btn-taylor').classList.toggle('on',taylorEnabled);
+  if(taylorEnabled&&!activeFns.length)toast('Add a function first');
+  draw();if(fsOpen)drawFs();
+}
+function onTaylorN(el){taylorOrder=parseInt(el.value);document.getElementById('taylor-n-val').textContent=taylorOrder;el.style.setProperty('--pct',(taylorOrder/10*100)+'%');if(taylorEnabled)draw();}
+function onTaylorA(el){taylorCenter=parseFloat(el.value);document.getElementById('taylor-a-val').textContent=taylorCenter.toFixed(1);el.style.setProperty('--pct',((taylorCenter+5)/10*100)+'%');if(taylorEnabled)draw();}
+
+// ─────────────────────────────────────────────────
+//  MATRIX OPS: multiply / inverse / eigen
+// ─────────────────────────────────────────────────
+function buildGridB(){
+  const el=document.getElementById('grid-b');el.innerHTML='';
+  for(let r=0;r<2;r++){
+    const row=document.createElement('div');row.className='gr';
+    for(let c2=0;c2<2;c2++){
+      const inp=document.createElement('input');
+      inp.className='cell cell-b';inp.type='number';inp.inputMode='decimal';inp.placeholder='0';inp.step='any';
+      inp.style.width='44px';inp.style.height='40px';inp.style.fontSize='13px';
+      inp.value=matrixB[r][c2]!==0?matrixB[r][c2]:'';
+      inp.dataset.r=r;inp.dataset.c=c2;
+      inp.addEventListener('change',e=>{matrixB[+e.target.dataset.r][+e.target.dataset.c]=parseFloat(e.target.value)||0;});
+      row.appendChild(inp);
+    }
+    el.appendChild(row);
+  }
+}
+function applyMultiply(){
+  const A=get2x2();
+  const result=[[0,0],[0,0]];
+  for(let i=0;i<2;i++)for(let j=0;j<2;j++){let s=0;for(let k=0;k<2;k++)s+=A[i][k]*matrixB[k][j];result[i][j]=s;}
+  pushUndo();
+  matrix=result;rows=2;cols=2;
+  document.querySelectorAll('.sb').forEach(b=>b.classList.toggle('on',b.textContent==='2×2'));
+  if(inputMode==='grid')buildGrid();else mxToText();
+  onViz();setTab('transform');
+  toast(`✦ A·B computed → [[${fmt(result[0][0])},${fmt(result[0][1])}],[${fmt(result[1][0])},${fmt(result[1][1])}]]`);
+}
+function inverse2x2(A){
+  const d=A[0][0]*A[1][1]-A[0][1]*A[1][0];
+  if(Math.abs(d)<1e-9)return null;
+  return [[A[1][1]/d,-A[0][1]/d],[-A[1][0]/d,A[0][0]/d]];
+}
+function toggleInverse(){
+  showInverse=!showInverse;
+  document.getElementById('btn-inverse').classList.toggle('on',showInverse);
+  const A=get2x2();
+  if(showInverse&&!inverse2x2(A))toast('⚠ Matrix is singular — no inverse');
+  setTab('transform');draw();if(fsOpen)drawFs();
+}
+function toggleEigen(){
+  showEigen=!showEigen;
+  document.getElementById('btn-eigen').classList.toggle('on',showEigen);
+  setTab('transform');draw();if(fsOpen)drawFs();
+}
+// real eigen decomposition for 2x2 (only real eigenvalues)
+function eigen2x2(A){
+  const tr=A[0][0]+A[1][1],de=A[0][0]*A[1][1]-A[0][1]*A[1][0];
+  const disc=tr*tr-4*de;
+  if(disc<0)return null; // complex eigenvalues — skip
+  const l1=(tr+Math.sqrt(disc))/2, l2=(tr-Math.sqrt(disc))/2;
+  function eigVec(lam){
+    // (A - lam I) v = 0
+    const a=A[0][0]-lam,b=A[0][1],cc=A[1][0],d=A[1][1]-lam;
+    let v;
+    if(Math.abs(b)>1e-9)v=[-b,a];
+    else if(Math.abs(cc)>1e-9)v=[d,-cc];
+    else v=[1,0];
+    const norm=Math.hypot(v[0],v[1])||1;
+    return [v[0]/norm,v[1]/norm];
+  }
+  return [{val:l1,vec:eigVec(l1)},{val:l2,vec:eigVec(l2)}];
+}
+
+// ─────────────────────────────────────────────────
+//  TRANSFORM ANIMATION (morph identity → matrix)
+// ─────────────────────────────────────────────────
+function onTAnimSlider(el){
+  transformAnimT=parseFloat(el.value);
+  document.getElementById('tanim-val').textContent=Math.round(transformAnimT*100)+'%';
+  el.style.setProperty('--pct',(transformAnimT*100)+'%');
+  draw();if(fsOpen)drawFs();
+}
+function toggleTransformAnim(){
+  transformAnimating=!transformAnimating;
+  document.getElementById('btn-tanim-play').textContent=transformAnimating?'⏸ Pause':'▶ Play morph';
+  document.getElementById('btn-tanim-play').classList.toggle('on',transformAnimating);
+  if(transformAnimating)tAnimLoop();else{cancelAnimationFrame(transformRAF);transformRAF=null;}
+}
+function tAnimLoop(){
+  if(!transformAnimating)return;
+  transformAnimT+=0.012;
+  if(transformAnimT>1){transformAnimT=0;}
+  const sl=document.getElementById('tanim-slider');sl.value=transformAnimT;sl.style.setProperty('--pct',(transformAnimT*100)+'%');
+  document.getElementById('tanim-val').textContent=Math.round(transformAnimT*100)+'%';
+  draw();if(fsOpen)drawFs();
+  transformRAF=requestAnimationFrame(tAnimLoop);
+}
+function lerpMat(A,t){
+  // lerp from identity to A
+  return [[1+(A[0][0]-1)*t, A[0][1]*t],[A[1][0]*t, 1+(A[1][1]-1)*t]];
+}
+
+// ─────────────────────────────────────────────────
+//  ROTATION
+// ─────────────────────────────────────────────────
+function onRotSlider(el){
+  const deg=parseFloat(el.value);rotAngle=deg*Math.PI/180;
+  el.style.setProperty('--pct',((deg/360)*100)+'%');
+  document.getElementById('rot-deg').textContent=Math.round(deg)+'°';
+  draw();if(fsOpen)drawFs();
+}
+function onSpdSlider(el){
+  rotSpeed=parseFloat(el.value);
+  el.style.setProperty('--pct',(((rotSpeed-.2)/4.8)*100)+'%');
+  document.getElementById('spd-val').textContent=rotSpeed.toFixed(1)+'×';
+}
+function toggleAnim(){
+  rotAnim=!rotAnim;
+  haptic(8);
+  const update=()=>{document.getElementById('btn-play').textContent=rotAnim?'⏸ Pause':'▶ Play';document.getElementById('btn-play').classList.toggle('on',rotAnim);const fsb=document.getElementById('fs-play-btn');fsb.textContent=rotAnim?'⏸':'▶';};
+  update();
+  if(rotAnim)animLoop();else{cancelAnimationFrame(rotRAF);rotRAF=null;document.body.style.filter='';}
+}
+function resetRot(){
+  rotAngle=0;rotTrail=[];
+  const sl=document.getElementById('rot-slider');sl.value=0;sl.style.setProperty('--pct','0%');
+  document.getElementById('rot-deg').textContent='0°';
+  if(rotAnim){rotAnim=false;cancelAnimationFrame(rotRAF);rotRAF=null;document.getElementById('btn-play').textContent='▶ Play';document.getElementById('btn-play').classList.remove('on');}
+  draw();if(fsOpen)drawFs();
+}
+function toggleRL(name){
+  rotLayers[name]=!rotLayers[name];
+  const idMap={vectors:'btn-rvec',circle:'btn-rcirc',fns:'btn-rfns',trail:'btn-rtrail'};
+  document.getElementById(idMap[name]).classList.toggle('on',rotLayers[name]);
+  draw();if(fsOpen)drawFs();
+}
+function animLoop(){
+  if(!rotAnim)return;
+  if(rotLayers.trail)rotTrail.push(rotAngle);
+  if(rotTrail.length>120)rotTrail.shift();
+  rotAngle+=0.008*rotSpeed;
+  if(rotAngle>Math.PI*2)rotAngle-=Math.PI*2;
+  const deg=rotAngle*180/Math.PI;
+  const sl=document.getElementById('rot-slider');sl.value=deg;sl.style.setProperty('--pct',((deg/360)*100)+'%');
+  document.getElementById('rot-deg').textContent=Math.round(deg)+'°';
+  pulseBodyWithRotation();
+  draw();if(fsOpen)drawFs();
+  rotRAF=requestAnimationFrame(animLoop);
+}
+
+// ─────────────────────────────────────────────────
+//  TABS
+// ─────────────────────────────────────────────────
+const TAB_NAMES=['graph','rotation','transform','heatmap','vectors','bars','field','circle'];
+function setTab(name){
+  activeTab=name;
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('on',TAB_NAMES[i]===name));
+  document.querySelectorAll('.fstab').forEach((t,i)=>t.classList.toggle('on',TAB_NAMES[i]===name));
+  document.getElementById('rot-panel').style.display=name==='rotation'?'':'none';
+  document.getElementById('param-card').style.display=(name==='rotation'||name==='circle')?'':'none';
+  document.getElementById('fs-play-btn').style.display=name==='rotation'?'':'none';
+  document.getElementById('gtools-card').style.display=name==='graph'?'':'none';
+  document.getElementById('tanim-card').style.display=name==='transform'?'':'none';
+  // show crosshair only on graph
+  canvas.style.cursor=(name==='graph'&&!areaSelecting)?'crosshair':(name==='graph'?'col-resize':'grab');
+  fsc.style.cursor=canvas.style.cursor;
+}
+function switchTab(name,e){setTab(name);if(hasViz||name==='rotation'||name==='circle'||name==='field'||activeFns.length)draw();}
+function switchFsTab(name,e){setTab(name);if(hasViz||name==='rotation'||name==='circle'||name==='field'||activeFns.length)drawFs();}
+
+// ─────────────────────────────────────────────────
+//  VISUALIZE
+// ─────────────────────────────────────────────────
+function onViz(){
+  if(inputMode==='text'){const p=parseTxt();if(!p)return;pushUndo();matrix=p;rows=matrix.length;cols=matrix[0].length;}
+  else readGrid();
+  hasViz=true;resizeCv();triggerTransition();updateAreaIndicator();
+}
+
+// ─────────────────────────────────────────────────
+//  CANVAS
+// ─────────────────────────────────────────────────
+function resizeCv(){
+  const dpr=devicePixelRatio||1,w=canvas.parentElement.clientWidth;
+  const h=Math.min(Math.max(w*.72,240),460);
+  canvas.style.width=w+'px';canvas.style.height=h+'px';
+  canvas.width=w*dpr;canvas.height=h*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+const W=()=>canvas.width/(devicePixelRatio||1);
+const H=()=>canvas.height/(devicePixelRatio||1);
+
+// ─────────────────────────────────────────────────
+//  FULLSCREEN
+// ─────────────────────────────────────────────────
+function openFs(){if(!hasViz&&!activeFns.length&&activeTab!=='rotation'){toast('Visualize or add a function first');return;}fso.classList.add('open');fsOpen=true;document.body.style.overflow='hidden';resizeFs();drawFs();}
+function closeFs(){fso.classList.remove('open');fsOpen=false;document.body.style.overflow='';}
+function resizeFs(){
+  const dpr=devicePixelRatio||1,w=fso.clientWidth,h=fso.clientHeight-fso.querySelector('.fshdr').offsetHeight;
+  fsc.style.width=w+'px';fsc.style.height=h+'px';fsc.width=w*dpr;fsc.height=h*dpr;fsCtx.setTransform(dpr,0,0,dpr,0,0);
+}
+const FW=()=>fsc.width/(devicePixelRatio||1);
+const FH=()=>fsc.height/(devicePixelRatio||1);
+function drawFs(){
+  fsCtx.clearRect(0,0,FW(),FH());
+  fsCtx.fillStyle='#080b12';fsCtx.fillRect(0,0,FW(),FH());
+  renderScene(fsCtx,FW,FH,'fs');
+  // no crossfade on fs (different canvas, separate state)
+}
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&fsOpen){closeFs();return;}
+  const tag=document.activeElement.tagName;
+  if(tag==='INPUT'||tag==='TEXTAREA')return;
+  if(e.key===' '){e.preventDefault();if(activeTab==='rotation')toggleAnim();}
+  if(e.key==='r'||e.key==='R'){if(activeTab==='rotation')resetRot();else{resetCam('small');resetCam('fs');draw();if(fsOpen)drawFs();}}
+  if(e.key==='+'||e.key==='='){ zoomAt('small',1.2,W()/2,H()/2,W(),H());draw();}
+  if(e.key==='-'||e.key==='_'){ zoomAt('small',.8,W()/2,H()/2,W(),H());draw();}
+  if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();undo();}
+  if((e.ctrlKey||e.metaKey)&&(e.key==='y'||e.key==='Y')){e.preventDefault();redo();}
+});
+window.addEventListener('resize',()=>{if(hasViz||activeFns.length){resizeCv();draw();}if(fsOpen){resizeFs();drawFs();}});
+
+// ─────────────────────────────────────────────────
+//  MAIN DRAW
+// ─────────────────────────────────────────────────
+function draw(){
+  ctx.clearRect(0,0,W(),H());
+  ctx.fillStyle='#0d1420';ctx.fillRect(0,0,W(),H());
+  if(!hasViz&&!activeFns.length&&activeTab!=='rotation'){drawEmpty();return;}
+
+  // Render new state
+  renderScene(ctx,W,H,'small');
+
+  // Crossfade with previous frame during transition
+  if(animPrev&&animProgress<1){
+    const alpha=1-easeInOut(animProgress);
+    const tmp=document.createElement('canvas');
+    tmp.width=canvas.width;tmp.height=canvas.height;
+    tmp.getContext('2d').putImageData(animPrev,0,0);
+    ctx.globalAlpha=alpha;
+    ctx.drawImage(tmp,0,0,W(),H());
+    ctx.globalAlpha=1;
+  }
+}
+function drawEmpty(){
+  ctx.fillStyle='#1e2d42';ctx.font='36px sans-serif';ctx.textAlign='center';
+  ctx.fillText('⊞',W()/2,H()/2-8);
+  ctx.font='12px Inter,sans-serif';ctx.fillStyle='#64748b';
+  ctx.fillText('Press Visualize or add a Function',W()/2,H()/2+20);
+}
+
+// ─────────────────────────────────────────────────
+//  SCENE ROUTER
+// ─────────────────────────────────────────────────
+function renderScene(tCtx,tW,tH,which){
+  if(activeTab==='graph')         drawGraphView(tCtx,tW,tH,which);
+  else if(activeTab==='rotation') drawRotationView(tCtx,tW,tH,which);
+  else if(activeTab==='transform')drawTransformView(tCtx,tW,tH,which);
+  else if(activeTab==='heatmap')  drawHeatmapView(tCtx,tW,tH,which);
+  else if(activeTab==='vectors')  drawVectorsView(tCtx,tW,tH,which);
+  else if(activeTab==='bars')     drawBarsView(tCtx,tW,tH,which);
+  else if(activeTab==='field')    drawFieldView(tCtx,tW,tH,which);
+  else if(activeTab==='circle')   drawCircleView(tCtx,tW,tH,which);
+  drawHUD(tCtx,tW,tH,which);
+}
+
+// ─────────────────────────────────────────────────
+//  GRAPH VIEW (infinite, crosshair, derivatives, intersections)
+// ─────────────────────────────────────────────────
+function drawGraphView(tCtx,tW,tH,which){
+  const w=tW(),h=tH(),c=cam[which];
+  drawInfGrid(tCtx,w,h,c);
+  drawInfAxes(tCtx,w,h,c);
+
+  // Matrix data
+  if(hasViz&&matrix.length&&matrix[0].length){
+    const matT=easeInOut(Math.min(1,animProgress));
+    if(matrix.length>=2){
+      const pts=matrix[0].map((_,ci)=>({x:matrix[0][ci],y:matrix[1]?.[ci]??0}));
+      tCtx.beginPath();let first=true;
+      pts.forEach(p=>{const sx=toSX(p.x,w,c),sy=toSY(p.y,h,c);first?(tCtx.moveTo(sx,sy),first=false):tCtx.lineTo(sx,sy);});
+      tCtx.strokeStyle='rgba(59,130,246,.4)';tCtx.lineWidth=1.5;tCtx.setLineDash([5,4]);tCtx.stroke();tCtx.setLineDash([]);
+      pts.forEach((p,i)=>{
+        const bob=floatY(i*1.1,2.5); // each point bobs at its own phase
+        const sx=toSX(p.x,w,c),sy=toSY(p.y,h,c)+bob;
+        const r=4+Math.sin(animFloatT*2+i)*0.8; // pulsing radius
+        // glow ring
+        tCtx.beginPath();tCtx.arc(sx,sy,r+3,0,Math.PI*2);
+        tCtx.fillStyle='rgba(59,130,246,0.15)';tCtx.fill();
+        // dot
+        tCtx.beginPath();tCtx.arc(sx,sy,r,0,Math.PI*2);
+        tCtx.fillStyle='#3b82f6';tCtx.fill();
+        tCtx.strokeStyle='#0d1420';tCtx.lineWidth=1.5;tCtx.stroke();
+        // floating label
+        tCtx.globalAlpha=matT;
+        tCtx.font='600 10px JetBrains Mono';tCtx.fillStyle='#93c5fd';tCtx.textAlign='center';
+        tCtx.fillText(`(${fmt(p.x)},${fmt(p.y)})`,sx,sy-12);
+        tCtx.globalAlpha=1;
+      });
+    }else{
+      const pts=matrix[0].map((y,i)=>({x:i,y}));
+      drawLine(tCtx,pts,w,h,c,'#3b82f6','__matrix__');
+      pts.forEach((p,i)=>{
+        const bob=floatY(i*1.3,2);
+        tCtx.beginPath();tCtx.arc(toSX(p.x,w,c),toSY(p.y,h,c)+bob,4,0,Math.PI*2);
+        tCtx.fillStyle='#3b82f6';tCtx.fill();
+        tCtx.globalAlpha=matT;
+        tCtx.font='600 10px JetBrains Mono';tCtx.fillStyle='#93c5fd';tCtx.textAlign='center';
+        tCtx.fillText(fmt(p.y),toSX(p.x,w,c),toSY(p.y,h,c)+bob-10);
+        tCtx.globalAlpha=1;
+      });
+    }
+  }
+
+  // Parametric curve
+  if(paramEnabled&&paramFnX&&paramFnY){
+    const tMin=parseFloat(document.getElementById('pt-min').value)||-6.28;
+    const tMax=parseFloat(document.getElementById('pt-max').value)||6.28;
+    const pts=[];
+    for(let i=0;i<=800;i++){
+      const t=tMin+(tMax-tMin)*i/800;
+      const px=paramFnX(t),py=paramFnY(t);
+      if(isFinite(px)&&isFinite(py)&&Math.abs(px)<1e5&&Math.abs(py)<1e5)pts.push({x:px,y:py});
+      else if(pts.length>1){drawLine(tCtx,pts,w,h,c,'#8b5cf6');pts.length=0;}
+    }
+    if(pts.length>1)drawLine(tCtx,pts,w,h,c,'#8b5cf6');
+    tCtx.font='600 11px JetBrains Mono';tCtx.fillStyle='#8b5cf6';tCtx.textAlign='left';
+    tCtx.fillText('param',toSX(paramFnX(tMax),w,c)+6,toSY(paramFnY(tMax),h,c)-8);
+  }
+
+  // Functions + derivatives
+  const xMin=toDX(0,w,c),xMax=toDX(w,w,c);
+  activeFns.forEach(f=>{
+    // main curve
+    const pts=[];
+    for(let i=0;i<=w*1.5;i++){
+      const x=xMin+(xMax-xMin)*i/(w*1.5);
+      const y=f.fn(x);
+      if(isFinite(y)&&Math.abs(y)<1e6)pts.push({x,y});
+      else if(pts.length){drawLine(tCtx,pts,w,h,c,f.color,f.label);pts.length=0;}
+    }
+    if(pts.length>1)drawLine(tCtx,pts,w,h,c,f.color,f.label);
+    // label at right edge — find last valid y
+    if(pts.length){
+      const last=pts[pts.length-1];
+      const rev=getFnReveal(f.label);
+      const labelX=toSX(last.x,w,c)-4;
+      const labelY=toSY(last.y,h,c)-8+floatY(f.label.charCodeAt(0)*0.4,1.5);
+      tCtx.globalAlpha=rev;
+      tCtx.font='600 11px JetBrains Mono';tCtx.fillStyle=f.color;tCtx.textAlign='right';
+      tCtx.fillText(f.label,labelX,labelY);
+      tCtx.globalAlpha=1;
+    }
+    // derivative overlay
+    if(f.showDeriv){
+      const dpts=[];
+      for(let i=0;i<=w*1.5;i++){
+        const x=xMin+(xMax-xMin)*i/(w*1.5);
+        const dy=derivative(f.fn,x);
+        if(isFinite(dy)&&Math.abs(dy)<1e6)dpts.push({x,y:dy});
+        else if(dpts.length){drawDashLine(tCtx,dpts,w,h,c,f.color+'88');dpts.length=0;}
+      }
+      if(dpts.length>1)drawDashLine(tCtx,dpts,w,h,c,f.color+'88');
+    }
+    // root finder
+    if(showRoots){
+      const roots=findRoots(f.fn,xMin-0.5,xMax+0.5);
+      roots.forEach(rx=>{
+        const sx=toSX(rx,w,c),sy=toSY(0,h,c);
+        tCtx.beginPath();tCtx.arc(sx,sy,5,0,Math.PI*2);
+        tCtx.fillStyle='#080b12';tCtx.fill();tCtx.strokeStyle=f.color;tCtx.lineWidth=2;tCtx.stroke();
+        tCtx.font='700 9px JetBrains Mono';tCtx.fillStyle=f.color;tCtx.textAlign='center';
+        tCtx.fillText(fmt(rx),sx,sy+18);
+      });
+    }
+    // critical points (local min/max via derivative sign change)
+    if(showCritical){
+      const crits=findCriticalPoints(f.fn,xMin-0.5,xMax+0.5);
+      crits.forEach(cp=>{
+        const sx=toSX(cp.x,w,c),sy=toSY(cp.y,h,c);
+        if(sx<-10||sx>w+10||sy<-10||sy>h+10) return;
+        // diamond shape
+        const d=7;
+        tCtx.beginPath();
+        tCtx.moveTo(sx,sy-d);tCtx.lineTo(sx+d,sy);tCtx.lineTo(sx,sy+d);tCtx.lineTo(sx-d,sy);
+        tCtx.closePath();
+        tCtx.fillStyle='#fff';tCtx.fill();
+        tCtx.strokeStyle=f.color;tCtx.lineWidth=2;tCtx.stroke();
+        // min/max label above/below
+        const isMax=cp.type==='max';
+        tCtx.font='700 10px JetBrains Mono';tCtx.fillStyle=f.color;tCtx.textAlign='center';
+        tCtx.fillText((isMax?'max':'min')+' ('+fmt(cp.x)+', '+fmt(cp.y)+')',sx,sy+(isMax?-14:20));
+      });
+    }
+  });
+
+  // Area under curve (first active function, in selected range)
+  if(areaSel&&activeFns.length){
+    const f=activeFns[0];
+    const {x1,x2}=areaSel;
+    const lo=Math.min(x1,x2),hi=Math.max(x1,x2);
+    tCtx.beginPath();
+    tCtx.moveTo(toSX(lo,w,c),toSY(0,h,c));
+    const steps=120;
+    for(let i=0;i<=steps;i++){const x=lo+(hi-lo)*i/steps,y=f.fn(x);tCtx.lineTo(toSX(x,w,c),toSY(isFinite(y)?y:0,h,c));}
+    tCtx.lineTo(toSX(hi,w,c),toSY(0,h,c));
+    tCtx.closePath();
+    tCtx.fillStyle=f.color+'33';tCtx.fill();
+    tCtx.strokeStyle=f.color+'88';tCtx.lineWidth=1;tCtx.stroke();
+    const area=integrate(f.fn,lo,hi);
+    const midX=toSX((lo+hi)/2,w,c);
+    tCtx.font='700 12px JetBrains Mono';tCtx.fillStyle=f.color;tCtx.textAlign='center';
+    tCtx.fillText(`∫ = ${fmt(area)}`,midX,toSY(0,h,c)+20);
+  }
+
+  // Intersection markers between consecutive functions
+  if(activeFns.length>=2){
+    for(let i=0;i<activeFns.length-1;i++){
+      const ixs=findIntersections(activeFns[i],activeFns[i+1],xMin-1,xMax+1);
+      ixs.forEach(p=>{
+        if(p.x<xMin-0.5||p.x>xMax+0.5)return;
+        const sx=toSX(p.x,w,c),sy=toSY(p.y,h,c);
+        tCtx.beginPath();tCtx.arc(sx,sy,5,0,Math.PI*2);
+        tCtx.fillStyle='#fff';tCtx.fill();tCtx.strokeStyle='#f59e0b';tCtx.lineWidth=2;tCtx.stroke();
+        tCtx.font='600 9px JetBrains Mono';tCtx.fillStyle='#f59e0b';tCtx.textAlign='center';
+        tCtx.fillText(`(${fmt(p.x)},${fmt(p.y)})`,sx,sy-10);
+      });
+    }
+  }
+
+  // Pinned points
+  pinned.forEach((p,i)=>{
+    const bob=floatY(i*2.3+1,3);
+    const sx=toSX(p.x,w,c),sy=toSY(p.y,h,c)+bob;
+    // pulsing ring
+    const pulse=0.5+0.5*Math.sin(animFloatT*3+i);
+    tCtx.beginPath();tCtx.arc(sx,sy,(7+pulse*3),0,Math.PI*2);
+    tCtx.fillStyle=(p.color||'#fff')+'22';tCtx.fill();
+    tCtx.beginPath();tCtx.arc(sx,sy,5,0,Math.PI*2);
+    tCtx.fillStyle=p.color||'#fff';tCtx.fill();tCtx.strokeStyle='#0d1420';tCtx.lineWidth=1.5;tCtx.stroke();
+    tCtx.font='700 10px JetBrains Mono';tCtx.fillStyle=p.color||'#fff';tCtx.textAlign='center';
+    tCtx.fillText(`(${fmt(p.x)},${fmt(p.y)})`,sx,sy-14);
+  });
+
+  // Taylor series approximation overlay
+  if(taylorEnabled&&activeFns.length){
+    const f=activeFns[0];
+    const a=taylorCenter, n=taylorOrder;
+    const coeffs=[];
+    for(let k=0;k<=n;k++)coeffs.push(nthDerivative(f.fn,a,k)/factorial(k));
+    const pts=[];
+    for(let i=0;i<=w;i++){
+      const x=xMin+(xMax-xMin)*i/w;
+      let y=0;for(let k=0;k<=n;k++)y+=coeffs[k]*Math.pow(x-a,k);
+      if(isFinite(y)&&Math.abs(y)<1e6)pts.push({x,y});
+      else if(pts.length>1){drawDashLine(tCtx,pts,w,h,c,'#fbbf24');pts.length=0;}
+    }
+    if(pts.length>1)drawDashLine(tCtx,pts,w,h,c,'#fbbf24');
+    const cx2=toSX(a,w,c),cy2=toSY(f.fn(a),h,c);
+    tCtx.beginPath();tCtx.arc(cx2,cy2,5,0,Math.PI*2);tCtx.fillStyle='#fbbf24';tCtx.fill();
+    tCtx.font='700 10px JetBrains Mono';tCtx.fillStyle='#fbbf24';tCtx.textAlign='center';
+    tCtx.fillText(`Taylor n=${n} @ x=${fmt(a)}`,cx2,cy2-14);
+  }
+
+  // Crosshair
+  if(crosshairPos&&which==='small'){
+    const sx=toSX(crosshairPos.x,w,c),sy=toSY(crosshairPos.y,h,c);
+    tCtx.strokeStyle='rgba(255,255,255,.18)';tCtx.lineWidth=1;tCtx.setLineDash([4,4]);
+    tCtx.beginPath();tCtx.moveTo(sx,0);tCtx.lineTo(sx,h);tCtx.stroke();
+    tCtx.beginPath();tCtx.moveTo(0,sy);tCtx.lineTo(w,sy);tCtx.stroke();
+    tCtx.setLineDash([]);
+    // snap dot per function
+    activeFns.forEach(f=>{
+      const fy=f.fn(crosshairPos.x);
+      if(!isFinite(fy)||Math.abs(fy)>1e5)return;
+      const fsy=toSY(fy,h,c);
+      tCtx.beginPath();tCtx.arc(sx,fsy,4,0,Math.PI*2);
+      tCtx.fillStyle=f.color;tCtx.fill();
+    });
+  }
+
+  if(!activeFns.length&&!hasViz&&!paramEnabled){
+    tCtx.font='11px Inter,sans-serif';tCtx.fillStyle='rgba(100,116,139,.4)';tCtx.textAlign='center';
+    tCtx.fillText('Add a function or visualize a matrix',w/2,h-12);
+  }
+}
+
+// ─────────────────────────────────────────────────
+//  ROTATION VIEW
+// ─────────────────────────────────────────────────
+function drawRotationView(tCtx,tW,tH,which){
+  const w=tW(),h=tH(),c=cam[which];
+  drawInfGrid(tCtx,w,h,c);
+  drawInfAxes(tCtx,w,h,c);
+  const cosA=Math.cos(rotAngle),sinA=Math.sin(rotAngle);
+  const R=[[cosA,-sinA],[sinA,cosA]];
+
+  // Ghost trail
+  if(rotLayers.trail&&rotTrail.length>1){
+    rotTrail.forEach((a,i)=>{
+      const alpha=i/rotTrail.length*0.3;
+      const ca=Math.cos(a),sa=Math.sin(a);
+      const e1=mv([[ca,-sa],[sa,ca]],[1,0]);
+      const ox=toSX(0,w,c),oy=toSY(0,h,c);
+      tCtx.beginPath();tCtx.moveTo(ox,oy);tCtx.lineTo(toSX(e1[0],w,c),toSY(e1[1],h,c));
+      tCtx.strokeStyle=`rgba(16,185,129,${alpha})`;tCtx.lineWidth=1;tCtx.stroke();
+    });
+  }
+
+  // Dotted reference unit circle
+  tCtx.beginPath();
+  for(let i=0;i<=360;i++){const a=i*Math.PI/180;i===0?tCtx.moveTo(toSX(Math.cos(a),w,c),toSY(Math.sin(a),h,c)):tCtx.lineTo(toSX(Math.cos(a),w,c),toSY(Math.sin(a),h,c));}
+  tCtx.strokeStyle='rgba(59,130,246,.2)';tCtx.lineWidth=1.5;tCtx.setLineDash([4,4]);tCtx.stroke();tCtx.setLineDash([]);
+
+  // Rotating circle
+  if(rotLayers.circle){
+    tCtx.beginPath();
+    for(let i=0;i<=360;i++){const a=i*Math.PI/180;const pt=mv(R,[Math.cos(a),Math.sin(a)]);i===0?tCtx.moveTo(toSX(pt[0],w,c),toSY(pt[1],h,c)):tCtx.lineTo(toSX(pt[0],w,c),toSY(pt[1],h,c));}
+    tCtx.strokeStyle='#3b82f6';tCtx.lineWidth=2;tCtx.stroke();
+  }
+
+  // Basis vectors
+  if(rotLayers.vectors){
+    const e1=mv(R,[1,0]),e2=mv(R,[0,1]);
+    [[e1,'#10b981','e₁'],[e2,'#f59e0b','e₂']].forEach(([v,col,lbl])=>{
+      const ox=toSX(0,w,c),oy=toSY(0,h,c),ex=toSX(v[0],w,c),ey=toSY(v[1],h,c);
+      tCtx.beginPath();tCtx.moveTo(ox,oy);tCtx.lineTo(ex,ey);tCtx.strokeStyle=col+'33';tCtx.lineWidth=6;tCtx.stroke();
+      drawArrow(tCtx,ox,oy,ex,ey,col,2.5);
+      tCtx.font='700 12px JetBrains Mono';tCtx.fillStyle=col;tCtx.textAlign='center';
+      tCtx.fillText(lbl,ex+(v[0]>=0?14:-14),ey+(v[1]>=0?-14:16));
+    });
+    // Angle arc
+    const rarc=c.ppu*.35,ox=toSX(0,w,c),oy=toSY(0,h,c);
+    tCtx.beginPath();tCtx.arc(ox,oy,rarc,0,-rotAngle,true);
+    tCtx.strokeStyle='rgba(255,255,255,.22)';tCtx.lineWidth=1.5;tCtx.stroke();
+    const midA=-rotAngle/2;
+    tCtx.font='700 10px JetBrains Mono';tCtx.fillStyle='rgba(255,255,255,.5)';tCtx.textAlign='center';
+    tCtx.fillText(Math.round(rotAngle*180/Math.PI)+'°',ox+Math.cos(midA)*(rarc+14),oy+Math.sin(midA)*(rarc+14));
+    // Moving point + projections
+    const px=toSX(cosA,w,c),py=toSY(sinA,h,c);
+    const ay=clamp(toSY(0,h,c),0,h),ax=clamp(toSX(0,w,c),0,w);
+    tCtx.beginPath();tCtx.moveTo(px,py);tCtx.lineTo(px,ay);tCtx.strokeStyle='rgba(245,158,11,.5)';tCtx.lineWidth=1;tCtx.setLineDash([3,3]);tCtx.stroke();
+    tCtx.beginPath();tCtx.moveTo(px,py);tCtx.lineTo(ax,py);tCtx.strokeStyle='rgba(16,185,129,.5)';tCtx.stroke();
+    tCtx.setLineDash([]);
+    tCtx.beginPath();tCtx.arc(px,py,6,0,Math.PI*2);tCtx.fillStyle='#fff';tCtx.fill();tCtx.strokeStyle='#3b82f6';tCtx.lineWidth=2;tCtx.stroke();
+    tCtx.font='600 10px JetBrains Mono';tCtx.fillStyle='#93c5fd';tCtx.textAlign='left';
+    tCtx.fillText(`(${fmt(cosA)}, ${fmt(sinA)})`,px+10,py-8);
+    // sin/cos labels
+    tCtx.font='600 9px JetBrains Mono';
+    tCtx.fillStyle='rgba(245,158,11,.8)';tCtx.textAlign='center';tCtx.fillText('sin θ',px,(py+ay)/2+(sinA>0?-4:12));
+    tCtx.fillStyle='rgba(16,185,129,.8)';tCtx.textAlign='center';tCtx.fillText('cos θ',(px+ax)/2,py-7);
+  }
+
+  // Rotating functions
+  if(rotLayers.fns&&activeFns.length){
+    activeFns.forEach(f=>{
+      const pts=[];
+      const xMin=toDX(0,w,c)-1,xMax=toDX(w,w,c)+1;
+      for(let i=0;i<=w*1.5;i++){
+        const xo=xMin+(xMax-xMin)*i/(w*1.5),yo=f.fn(xo);
+        if(!isFinite(yo)||Math.abs(yo)>1e5){if(pts.length>1)drawLine(tCtx,pts,w,h,c,f.color);pts.length=0;continue;}
+        const rp=mv(R,[xo,yo]);pts.push({x:rp[0],y:rp[1]});
+      }
+      if(pts.length>1)drawLine(tCtx,pts,w,h,c,f.color);
+    });
+  }
+
+  // Parametric rotating
+  if(paramEnabled&&paramFnX&&paramFnY){
+    const tMin=parseFloat(document.getElementById('pt-min').value)||-6.28;
+    const tMax=parseFloat(document.getElementById('pt-max').value)||6.28;
+    const pts=[];
+    for(let i=0;i<=600;i++){
+      const t=tMin+(tMax-tMin)*i/600;
+      const px2=paramFnX(t),py2=paramFnY(t);
+      if(!isFinite(px2)||!isFinite(py2)){if(pts.length>1)drawLine(tCtx,pts,w,h,c,'#8b5cf6');pts.length=0;continue;}
+      const rp=mv(R,[px2,py2]);pts.push({x:rp[0],y:rp[1]});
+    }
+    if(pts.length>1)drawLine(tCtx,pts,w,h,c,'#8b5cf6');
+  }
+
+  // Matrix columns rotating
+  if(hasViz&&matrix.length>=2){
+    const C=matrix[0].length;
+    for(let col=0;col<C;col++){
+      const orig=[matrix[0][col]??0,matrix[1][col]??0];
+      const rp=mv(R,orig);
+      const ox=toSX(0,w,c),oy=toSY(0,h,c);
+      const col_c=COLORS[(col+2)%COLORS.length];
+      tCtx.beginPath();tCtx.moveTo(ox,oy);tCtx.lineTo(toSX(orig[0],w,c),toSY(orig[1],h,c));
+      tCtx.strokeStyle=col_c+'44';tCtx.lineWidth=1.5;tCtx.setLineDash([3,3]);tCtx.stroke();tCtx.setLineDash([]);
+      drawArrow(tCtx,ox,oy,toSX(rp[0],w,c),toSY(rp[1],h,c),col_c,2);
+      tCtx.font='600 10px JetBrains Mono';tCtx.fillStyle=col_c;tCtx.textAlign='center';
+      tCtx.fillText(`M·c${col+1}`,toSX(rp[0],w,c)+(rp[0]>=0?16:-16),toSY(rp[1],h,c)+(rp[1]>=0?-12:16));
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────
+//  TRANSFORM VIEW (animated morph support)
+// ─────────────────────────────────────────────────
+function drawTransformView(tCtx,tW,tH,which){
+  const w=tW(),h=tH(),c=cam[which];
+  drawInfGrid(tCtx,w,h,c);
+  drawInfAxes(tCtx,w,h,c);
+  const A0=get2x2();
+  const A=lerpMat(A0,transformAnimT); // animated matrix
+  const scale=c.ppu;
+  const cx=toSX(0,w,c),cy=toSY(0,h,c);
+  const sq=[[0,0],[1,0],[1,1],[0,1]],tsq=sq.map(p=>mv(A,p));
+  polyS(tCtx,sq,'#253350','rgba(59,130,246,.12)',cx,cy,scale);
+  polyS(tCtx,tsq,'#3b82f6','rgba(59,130,246,.18)',cx,cy,scale);
+  [[A[0][0],A[1][0]],[A[0][1],A[1][1]]].forEach((v,i)=>{
+    drawArrow(tCtx,cx,cy,cx+v[0]*scale,cy-v[1]*scale,COLORS[i+1],2.5);
+    const lbob=floatY(i*2.2,2.5);
+    tCtx.font='700 11px JetBrains Mono';tCtx.fillStyle=COLORS[i+1];tCtx.textAlign='center';
+    tCtx.fillText(`e${i+1}`,cx+v[0]*scale+(v[0]>=0?14:-14),cy-v[1]*scale+(v[1]>=0?-10:18)+lbob);
+  });
+
+  // Inverse matrix overlay
+  if(showInverse){
+    const inv=inverse2x2(A0);
+    if(inv){
+      const isq=sq.map(p=>mv(inv,p));
+      polyS(tCtx,isq,'#10b981','rgba(16,185,129,.14)',cx,cy,scale);
+      tCtx.font='600 10px JetBrains Mono';tCtx.fillStyle='#10b981';tCtx.textAlign='left';
+      tCtx.fillText('A⁻¹ region',10,h-56);
+    }
+  }
+
+  // Eigenvector overlay
+  if(showEigen){
+    const eig=eigen2x2(A0);
+    if(eig){
+      eig.forEach((e,i)=>{
+        const ex=cx+e.vec[0]*scale*2.2, ey=cy-e.vec[1]*scale*2.2;
+        const exN=cx-e.vec[0]*scale*2.2, eyN=cy+e.vec[1]*scale*2.2;
+        tCtx.beginPath();tCtx.moveTo(exN,eyN);tCtx.lineTo(ex,ey);
+        tCtx.strokeStyle=i===0?'#fbbf24':'#ec4899';tCtx.lineWidth=2;tCtx.setLineDash([2,4]);tCtx.stroke();tCtx.setLineDash([]);
+        const ebob=floatY(i*3.1+0.7,3);
+        tCtx.font='700 10px JetBrains Mono';tCtx.fillStyle=i===0?'#fbbf24':'#ec4899';tCtx.textAlign='center';
+        tCtx.fillText(`λ${i+1}=${fmt(e.val)}`,ex+(e.vec[0]>=0?16:-16),ey+(e.vec[1]>=0?-10:14)+ebob);
+      });
+    }else{
+      tCtx.font='10px Inter,sans-serif';tCtx.fillStyle='#ef4444';tCtx.textAlign='left';
+      tCtx.fillText('Complex eigenvalues — no real eigenvectors',10,h-56);
+    }
+  }
+
+  const det2=fmt(detM(matrix));
+  tCtx.font='11px Inter,sans-serif';tCtx.textAlign='left';
+  tCtx.fillStyle='#334966';tCtx.fillText('■ Original',10,h-42);
+  tCtx.fillStyle='#3b82f6';tCtx.fillText('■ Transformed',10,h-28);
+  tCtx.fillStyle='#64748b';tCtx.fillText(`det = ${det2}`,10,h-12);
+}
+
+
+// ─────────────────────────────────────────────────
+//  HEATMAP VIEW
+// ─────────────────────────────────────────────────
+function drawHeatmapView(tCtx,tW,tH,which){
+  const w=tW(),h=tH(),pad=38,pw=w-pad*2,ph=h-pad*2-20;
+  const R=matrix.length,C=matrix[0].length,cw=pw/C,ch=ph/R;
+  const vals=matrix.flat(),mn=Math.min(...vals),mx=Math.max(...vals),rng=mx-mn||1;
+  for(let r=0;r<R;r++)for(let c=0;c<C;c++){
+    const t=(matrix[r][c]-mn)/rng;tCtx.fillStyle=heatColor(t);tCtx.fillRect(pad+c*cw,pad+r*ch,cw,ch);
+    const fs=Math.min(14,Math.floor(Math.min(cw,ch)*.38));tCtx.font=`600 ${fs}px JetBrains Mono`;
+    tCtx.fillStyle=t>.55?'rgba(0,0,0,.85)':'rgba(255,255,255,.9)';tCtx.textAlign='center';
+    const v=matrix[r][c];tCtx.fillText(v%1===0?v:v.toFixed(2),pad+c*cw+cw/2,pad+r*ch+ch/2+fs*.35);
+  }
+  tCtx.font='11px JetBrains Mono';tCtx.fillStyle='#64748b';tCtx.textAlign='center';
+  for(let c=0;c<C;c++)tCtx.fillText(`c${c+1}`,pad+c*cw+cw/2,pad-10);
+  tCtx.textAlign='right';for(let r=0;r<R;r++)tCtx.fillText(`r${r+1}`,pad-6,pad+r*ch+ch/2+4);
+  for(let i=0;i<pw;i++){tCtx.fillStyle=heatColor(i/pw);tCtx.fillRect(pad+i,h-18,1,10);}
+  tCtx.font='9px JetBrains Mono';tCtx.fillStyle='#64748b';
+  tCtx.textAlign='left';tCtx.fillText(fmt(mn),pad,h-4);tCtx.textAlign='right';tCtx.fillText(fmt(mx),pad+pw,h-4);
+}
+
+// ─────────────────────────────────────────────────
+//  VECTORS VIEW
+// ─────────────────────────────────────────────────
+function drawVectorsView(tCtx,tW,tH,which){
+  const w=tW(),h=tH(),c=cam[which];
+  drawInfGrid(tCtx,w,h,c);drawInfAxes(tCtx,w,h,c);
+  const C=matrix[0].length,R=matrix.length;
+  const cx=toSX(0,w,c),cy=toSY(0,h,c);
+  for(let col=0;col<C;col++){
+    const vx=R>=1?matrix[0][col]:0,vy=R>=2?matrix[1][col]:0;
+    const color=COLORS[col%COLORS.length];
+    drawArrow(tCtx,cx,cy,toSX(vx,w,c),toSY(vy,h,c),color,2.5);
+    const lbob=floatY(col*1.8+0.5,2.8);
+    const lx=toSX(vx,w,c)+(vx>=0?16:-16),ly=toSY(vy,h,c)+(vy>=0?-10:18)+lbob;
+    tCtx.font='700 11px JetBrains Mono';tCtx.fillStyle=color;tCtx.textAlign='center';
+    tCtx.fillText(`c${col+1}`,lx,ly);
+    tCtx.font='10px JetBrains Mono';tCtx.fillStyle=color+'aa';
+    tCtx.fillText(`(${fmt(vx)},${fmt(vy)})`,lx,ly+14);
+  }
+}
+
+// ─────────────────────────────────────────────────
+//  BARS VIEW
+// ─────────────────────────────────────────────────
+function drawBarsView(tCtx,tW,tH,which){
+  const w=tW(),h=tH(),pd={l:44,r:16,t:20,b:38},pw=w-pd.l-pd.r,ph=h-pd.t-pd.b;
+  const allV=matrix.flat(),mxV=Math.max(.001,...allV.map(Math.abs));
+  const C=matrix[0].length,R=matrix.length,gW=pw/C,bW=Math.max(4,gW/(R+1)*.82),zY=pd.t+ph/2;
+  tCtx.strokeStyle='#2d4060';tCtx.lineWidth=1.5;tCtx.beginPath();tCtx.moveTo(pd.l,zY);tCtx.lineTo(w-pd.r,zY);tCtx.stroke();
+  for(let c=0;c<C;c++){
+    for(let r=0;r<R;r++){
+      const val=matrix[r][c],bh=Math.abs(val)/(mxV*2)*ph;
+      const bx=pd.l+c*gW+(gW/(R+1))*(r+.5)+bW*r-bW*R/2,by=val>=0?zY-bh:zY;
+      const col=COLORS[r%COLORS.length],gr=tCtx.createLinearGradient(0,by,0,by+bh);
+      gr.addColorStop(0,col);gr.addColorStop(1,col+'33');tCtx.fillStyle=gr;
+      tCtx.beginPath();tCtx.roundRect?tCtx.roundRect(bx,by,bW,Math.max(bh,1),[3,3,0,0]):tCtx.rect(bx,by,bW,Math.max(bh,1));tCtx.fill();
+      if(bW>16){tCtx.font='9px JetBrains Mono';tCtx.fillStyle=col;tCtx.textAlign='center';tCtx.fillText(fmt(val),bx+bW/2,val>=0?by-4:by+bh+10);}
+    }
+    tCtx.font='10px JetBrains Mono';tCtx.fillStyle='#64748b';tCtx.textAlign='center';tCtx.fillText(`c${c+1}`,pd.l+c*gW+gW/2,h-pd.b+16);
+  }
+  tCtx.font='9px JetBrains Mono';tCtx.fillStyle='#64748b';tCtx.textAlign='right';
+  tCtx.fillText(fmt(mxV),pd.l-4,pd.t+10);tCtx.fillText('0',pd.l-4,zY+4);tCtx.fillText(fmt(-mxV),pd.l-4,h-pd.b);
+  if(R>1)for(let r=0;r<R;r++){tCtx.fillStyle=COLORS[r%COLORS.length];tCtx.fillRect(10,8+r*16,10,10);tCtx.font='9px JetBrains Mono';tCtx.fillStyle='#94a3b8';tCtx.textAlign='left';tCtx.fillText(`Row ${r+1}`,24,17+r*16);}
+}
+
+// ─────────────────────────────────────────────────
+//  VECTOR FIELD VIEW (matrix flow field)
+// ─────────────────────────────────────────────────
+function drawFieldView(tCtx,tW,tH,which){
+  const w=tW(),h=tH(),c=cam[which];
+  drawInfGrid(tCtx,w,h,c);drawInfAxes(tCtx,w,h,c);
+  const A=get2x2();
+  const xMin=toDX(0,w,c),xMax=toDX(w,w,c),yMin=toDY(h,h,c),yMax=toDY(0,h,c);
+  const stepX=(xMax-xMin)/fieldDensity, stepY=(yMax-yMin)/fieldDensity;
+  // find max magnitude for normalization
+  let maxMag=0;
+  for(let i=0;i<=fieldDensity;i++)for(let j=0;j<=fieldDensity;j++){
+    const px=xMin+i*stepX,py=yMin+j*stepY;
+    const v=mv(A,[px,py]);
+    const dx=v[0]-px,dy=v[1]-py;
+    maxMag=Math.max(maxMag,Math.hypot(dx,dy));
+  }
+  const arrowLen=Math.min(stepX,stepY)*0.42;
+  for(let i=0;i<=fieldDensity;i++)for(let j=0;j<=fieldDensity;j++){
+    const px=xMin+i*stepX,py=yMin+j*stepY;
+    const v=mv(A,[px,py]);
+    const dx=v[0]-px,dy=v[1]-py;
+    const mag=Math.hypot(dx,dy);
+    if(mag<1e-6)continue;
+    const ux=dx/mag,uy=dy/mag;
+    const len=arrowLen*Math.min(1,0.3+mag/(maxMag||1)*0.9);
+    const sx=toSX(px,w,c),sy=toSY(py,h,c);
+    const ex=sx+ux*len*c.ppu/60,ey=sy-uy*len*c.ppu/60;
+    const t=Math.min(1,mag/(maxMag||1));
+    const color=heatColor(t);
+    drawArrow(tCtx,sx,sy,ex,ey,color,1.6);
+  }
+  tCtx.font='11px Inter,sans-serif';tCtx.fillStyle='#64748b';tCtx.textAlign='left';
+  tCtx.fillText('Flow field of A·v − v  (where each point moves under the matrix)',10,h-12);
+}
+
+// ─────────────────────────────────────────────────
+//  UNIT CIRCLE VIEW (dedicated trig tab)
+// ─────────────────────────────────────────────────
+function drawCircleView(tCtx,tW,tH,which){
+  const w=tW(),h=tH(),c=cam[which];
+  drawInfGrid(tCtx,w,h,c);drawInfAxes(tCtx,w,h,c);
+  const cx=toSX(0,w,c),cy=toSY(0,h,c);
+  const r=c.ppu;
+  // circle
+  tCtx.beginPath();tCtx.arc(cx,cy,r,0,Math.PI*2);
+  tCtx.strokeStyle='#3b82f6';tCtx.lineWidth=2;tCtx.stroke();
+  // angle = rotAngle (reuse rotation state so it's controllable, default 45 deg if 0)
+  const theta=rotAngle||Math.PI/4;
+  const px=cx+Math.cos(theta)*r, py=cy-Math.sin(theta)*r;
+  // radius line
+  drawArrow(tCtx,cx,cy,px,py,'#fff',2);
+  // triangle: adjacent (cos) + opposite (sin)
+  tCtx.beginPath();tCtx.moveTo(cx,cy);tCtx.lineTo(px,cy);tCtx.lineTo(px,py);tCtx.closePath();
+  tCtx.fillStyle='rgba(59,130,246,.08)';tCtx.fill();
+  tCtx.strokeStyle='rgba(255,255,255,.15)';tCtx.lineWidth=1;tCtx.stroke();
+  // cos (adjacent, horizontal)
+  tCtx.beginPath();tCtx.moveTo(cx,cy);tCtx.lineTo(px,cy);tCtx.strokeStyle='#10b981';tCtx.lineWidth=3;tCtx.stroke();
+  // sin (opposite, vertical)
+  tCtx.beginPath();tCtx.moveTo(px,cy);tCtx.lineTo(px,py);tCtx.strokeStyle='#f59e0b';tCtx.lineWidth=3;tCtx.stroke();
+  // angle arc
+  tCtx.beginPath();tCtx.arc(cx,cy,28,0,-theta,true);
+  tCtx.strokeStyle='rgba(255,255,255,.4)';tCtx.lineWidth=1.5;tCtx.stroke();
+  // point marker
+  tCtx.beginPath();tCtx.arc(px,py,6,0,Math.PI*2);tCtx.fillStyle='#fff';tCtx.fill();tCtx.strokeStyle='#3b82f6';tCtx.lineWidth=2;tCtx.stroke();
+  // Labels
+  tCtx.font='700 12px JetBrains Mono';tCtx.textAlign='center';
+  tCtx.fillStyle='#10b981';tCtx.fillText(`cos θ = ${fmt(Math.cos(theta))}`,(cx+px)/2,cy+18);
+  tCtx.fillStyle='#f59e0b';tCtx.save();tCtx.translate(px+20,(cy+py)/2);tCtx.fillText(`sin θ = ${fmt(Math.sin(theta))}`,0,0);tCtx.restore();
+  tCtx.fillStyle='#fff';tCtx.fillText(`θ = ${fmt(theta*180/Math.PI)}°  (${fmt(theta)} rad)`,cx,cy-r-20);
+  tCtx.font='600 11px JetBrains Mono';tCtx.fillStyle='#8b5cf6';
+  const tanV=Math.tan(theta);
+  tCtx.fillText(`tan θ = ${isFinite(tanV)?fmt(tanV):'undefined'}`,cx,cy-r-38);
+  // hint
+  tCtx.font='10px Inter,sans-serif';tCtx.fillStyle='rgba(100,116,139,.5)';tCtx.textAlign='left';
+  tCtx.fillText('Tip: use the Rotation tab angle slider to change θ here too',10,h-12);
+}
+
+// ─────────────────────────────────────────────────
+//  HUD
+// ─────────────────────────────────────────────────
+function drawHUD(tCtx,tW,tH,which){
+  const c=cam[which],w=tW(),h=tH();
+  const moved=Math.abs(c.vx)>.01||Math.abs(c.vy)>.01||Math.abs(c.ppu-60)>1;
+  tCtx.font='600 11px JetBrains Mono,monospace';
+  const zl=Math.round(c.ppu/60*100)+'%',zw=tCtx.measureText(zl).width+18;
+  const zx=w-zw-10,zy=h-34;
+  rrect(tCtx,zx,zy,zw,22,5,'rgba(14,20,32,.88)','#1e2d42');
+  tCtx.fillStyle=moved?'#3b82f6':'#64748b';tCtx.textAlign='center';tCtx.fillText(zl,zx+zw/2,zy+14);
+  tCtx._rb=null;
+  if(moved){
+    tCtx.font='600 11px Inter,sans-serif';const rl='↺  Reset view';
+    const rw=tCtx.measureText(rl).width+20,rx=w-rw-10,ry=h-62;
+    rrect(tCtx,rx,ry,rw,22,5,'rgba(59,130,246,.14)','#3b82f6');
+    tCtx.fillStyle='#3b82f6';tCtx.textAlign='center';tCtx.fillText(rl,rx+rw/2,ry+14);
+    tCtx._rb={rx,ry,rw,rh:22};
+  }
+  if(!moved){tCtx.font='10px Inter,sans-serif';tCtx.fillStyle='rgba(100,116,139,.35)';tCtx.textAlign='left';tCtx.fillText('Drag · Scroll/Pinch to zoom',10,h-10);}
+  tCtx.textAlign='left';
+}
+
+// ─────────────────────────────────────────────────
+//  DRAWING HELPERS
+// ─────────────────────────────────────────────────
+function drawInfGrid(tCtx,w,h,c){
+  const step=niceStep(100/c.ppu);
+  const x0=Math.floor(toDX(0,w,c)/step)*step;
+  const y0=Math.floor(toDY(h,h,c)/step)*step;
+  tCtx.strokeStyle='rgba(30,45,66,.9)';tCtx.lineWidth=1;
+  for(let x=x0;toSX(x,w,c)<w+1;x+=step){const sx=toSX(x,w,c);tCtx.beginPath();tCtx.moveTo(sx,0);tCtx.lineTo(sx,h);tCtx.stroke();}
+  for(let y=y0;toSY(y,h,c)>-1;y+=step){const sy=toSY(y,h,c);tCtx.beginPath();tCtx.moveTo(0,sy);tCtx.lineTo(w,sy);tCtx.stroke();}
+  // tick labels
+  tCtx.font='9px JetBrains Mono';tCtx.fillStyle='#4a5568';
+  const ax0=clamp(toSX(0,w,c),30,w-10),ay0=clamp(toSY(0,h,c),12,h-16);
+  for(let x=x0;toSX(x,w,c)<w+1;x+=step){if(Math.abs(x)<step*.01)continue;tCtx.textAlign='center';tCtx.fillText(fmt(x),toSX(x,w,c),ay0+12);}
+  for(let y=y0;toSY(y,h,c)>-1;y+=step){if(Math.abs(y)<step*.01)continue;tCtx.textAlign='right';tCtx.fillText(fmt(y),ax0-5,toSY(y,h,c)+3);}
+}
+function drawInfAxes(tCtx,w,h,c){
+  const ax=clamp(toSX(0,w,c),0,w),ay=clamp(toSY(0,h,c),0,h);
+  tCtx.strokeStyle='#2d4060';tCtx.lineWidth=1.5;
+  tCtx.beginPath();tCtx.moveTo(0,ay);tCtx.lineTo(w,ay);tCtx.stroke();
+  tCtx.beginPath();tCtx.moveTo(ax,0);tCtx.lineTo(ax,h);tCtx.stroke();
+  tCtx.font='10px JetBrains Mono';tCtx.fillStyle='#64748b';tCtx.textAlign='center';
+  tCtx.fillText('x',w-8,ay-6);tCtx.fillText('y',ax+8,12);
+}
+function drawLine(tCtx,pts,w,h,c,color,label){
+  if(pts.length<2)return;
+  // Reveal progress: draw only up to `progress` fraction of the curve from left
+  const progress=label?getFnReveal(label):1;
+  const visCount=Math.max(2,Math.floor(pts.length*progress));
+  const visPts=pts.slice(0,visCount);
+
+  // Floating bob: shift y slightly for a subtle floating effect
+  const phase=label?(label.charCodeAt(0)*0.4):0;
+  const dy=floatY(phase,1.5)*(1-progress*0.5); // fades as reveal settles
+
+  tCtx.beginPath();
+  visPts.forEach((p,i)=>{
+    const sx=toSX(p.x,w,c), sy=toSY(p.y,h,c)+dy;
+    i===0?tCtx.moveTo(sx,sy):tCtx.lineTo(sx,sy);
+  });
+
+  // Glow on fresh reveal
+  if(progress<1){
+    tCtx.shadowColor=color;
+    tCtx.shadowBlur=8*(1-progress);
+  }
+  tCtx.strokeStyle=color;tCtx.lineWidth=2.2;tCtx.lineJoin='round';tCtx.stroke();
+  tCtx.shadowBlur=0;
+
+  // Animated leading dot at the frontier of reveal
+  if(progress<0.99&&visPts.length>0){
+    const tip=visPts[visPts.length-1];
+    const tsx=toSX(tip.x,w,c), tsy=toSY(tip.y,h,c)+dy;
+    tCtx.beginPath();tCtx.arc(tsx,tsy,4,0,Math.PI*2);
+    tCtx.fillStyle='#fff';tCtx.fill();
+    tCtx.strokeStyle=color;tCtx.lineWidth=2;tCtx.stroke();
+  }
+}
+function drawDashLine(tCtx,pts,w,h,c,color){
+  if(pts.length<2)return;
+  tCtx.setLineDash([6,4]);
+  tCtx.beginPath();pts.forEach((p,i)=>{const sx=toSX(p.x,w,c),sy=toSY(p.y,h,c);i===0?tCtx.moveTo(sx,sy):tCtx.lineTo(sx,sy);});
+  tCtx.strokeStyle=color;tCtx.lineWidth=1.5;tCtx.stroke();tCtx.setLineDash([]);
+}
+function drawArrow(tCtx,x1,y1,x2,y2,col,lw){
+  tCtx.strokeStyle=col;tCtx.fillStyle=col;tCtx.lineWidth=lw;
+  tCtx.beginPath();tCtx.moveTo(x1,y1);tCtx.lineTo(x2,y2);tCtx.stroke();
+  const a=Math.atan2(y2-y1,x2-x1),hs=10;
+  tCtx.beginPath();tCtx.moveTo(x2,y2);
+  tCtx.lineTo(x2-hs*Math.cos(a-.4),y2-hs*Math.sin(a-.4));
+  tCtx.lineTo(x2-hs*Math.cos(a+.4),y2-hs*Math.sin(a+.4));
+  tCtx.closePath();tCtx.fill();
+}
+function polyS(tCtx,pts,stroke,fill,cx,cy,scale){
+  tCtx.beginPath();pts.forEach((p,i)=>{const x=cx+p[0]*scale,y=cy-p[1]*scale;i?tCtx.lineTo(x,y):tCtx.moveTo(x,y);});
+  tCtx.closePath();tCtx.fillStyle=fill;tCtx.fill();tCtx.strokeStyle=stroke;tCtx.lineWidth=2;tCtx.stroke();
+  pts.forEach(p=>{tCtx.beginPath();tCtx.arc(cx+p[0]*scale,cy-p[1]*scale,3.5,0,Math.PI*2);tCtx.fillStyle=stroke;tCtx.fill();});
+}
+function heatColor(t){
+  const s=[[10,20,60],[0,100,180],[16,185,129],[245,158,11],[239,68,68]];
+  const i=t*(s.length-1),lo=Math.floor(i),hi=Math.min(lo+1,s.length-1),f=i-lo;
+  const l=(a,b)=>Math.round(a+(b-a)*f);
+  return`rgb(${l(s[lo][0],s[hi][0])},${l(s[lo][1],s[hi][1])},${l(s[lo][2],s[hi][2])})`;
+}
+function rrect(tCtx,x,y,w,h,r,fill,stroke){
+  tCtx.beginPath();tCtx.roundRect?tCtx.roundRect(x,y,w,h,r):tCtx.rect(x,y,w,h);
+  tCtx.fillStyle=fill;tCtx.fill();if(stroke){tCtx.strokeStyle=stroke;tCtx.lineWidth=1;tCtx.stroke();}
+}
+function niceStep(target){
+  const p=Math.pow(10,Math.floor(Math.log10(target)));const f=target/p;
+  return f<1.5?p:f<3.5?2*p:f<7.5?5*p:10*p;
+}
+function clamp(v,mn,mx){return Math.max(mn,Math.min(mx,v));}
+function get2x2(){const A=[[1,0],[0,1]];
+  if(matrix[0]?.[0]!==undefined)A[0][0]=matrix[0][0];if(matrix[0]?.[1]!==undefined)A[0][1]=matrix[0][1];
+  if(matrix[1]?.[0]!==undefined)A[1][0]=matrix[1][0];if(matrix[1]?.[1]!==undefined)A[1][1]=matrix[1][1];return A;}
+function mv(A,v){return[A[0][0]*v[0]+A[0][1]*v[1],A[1][0]*v[0]+A[1][1]*v[1]];}
+function fmt(v){if(!isFinite(v))return'∞';if(Math.abs(v)<.0001&&v!==0)return v.toExponential(1);if(Math.abs(v)>=10000)return v.toExponential(1);return parseFloat(v.toFixed(3)).toString();}
+
+// ── Crosshair ──
+function setupCrosshair(el,tCanv,which,tipId){
+  const tip=document.getElementById(tipId);
+  el.addEventListener('mousemove',e=>{
+    if(activeTab!=='graph'){tip.style.display='none';crosshairPos=null;return;}
+    const r=el.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;
+    const w=tCanv.width/(devicePixelRatio||1),h=tCanv.height/(devicePixelRatio||1),c=cam[which];
+    const dx=toDX(mx,w,c),dy=toDY(my,h,c);
+    crosshairPos={x:dx,y:dy};
+    let html=`<span style="color:var(--muted)">x</span> ${fmt(dx)} &nbsp;<span style="color:var(--muted)">y</span> ${fmt(dy)}`;
+    activeFns.forEach(f=>{const fy=f.fn(dx);if(isFinite(fy)&&Math.abs(fy)<1e5)html+=`<br><span style="color:${f.color}">${f.label}</span> = ${fmt(fy)}`;});
+    tip.innerHTML=html;tip.style.display='block';
+    tip.style.left=Math.min(mx+14,w-tip.offsetWidth-4)+'px';
+    tip.style.top=Math.max(my-40,4)+'px';
+    if(which==='small')draw();
+  });
+  el.addEventListener('mouseleave',()=>{tip.style.display='none';crosshairPos=null;if(activeTab==='graph')draw();});
+  el.addEventListener('click',e=>{
+    if(activeTab!=='graph')return;
+    const r=el.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;
+    const w=tCanv.width/(devicePixelRatio||1),h=tCanv.height/(devicePixelRatio||1),c=cam[which];
+    const rb=(which==='small'?ctx:fsCtx)._rb;
+    if(rb&&mx>=rb.rx&&mx<=rb.rx+rb.rw&&my>=rb.ry&&my<=rb.ry+rb.rh){resetCam(which);draw();if(fsOpen)drawFs();return;}
+    const dx=toDX(mx,w,c);
+    let best=null,bestDist=Infinity;
+    activeFns.forEach(f=>{const fy=f.fn(dx);if(!isFinite(fy))return;const d=Math.abs(toSY(fy,h,c)-my);if(d<bestDist){bestDist=d;best={x:dx,y:fy,color:f.color};}});
+    if(best&&bestDist<30){pinned.push(best);haptic(12);draw();if(fsOpen)drawFs();}
+    else if(pinned.length){pinned.pop();draw();if(fsOpen)drawFs();}
+  });
+}
+
+// ── Pan/Zoom ──
+function setupPanZoom(el,which,redrawFn){
+  let drag=false,lx=0,ly=0,lpd=null;
+  function getxy(e){const r=el.getBoundingClientRect();if(e.touches?.length)return{x:e.touches[0].clientX-r.left,y:e.touches[0].clientY-r.top};return{x:e.clientX-r.left,y:e.clientY-r.top};}
+  el.addEventListener('mousedown',e=>{if(e.button===1||e.button===2||activeTab!=='graph'){e.preventDefault();drag=true;lx=e.clientX;ly=e.clientY;}});
+  window.addEventListener('mousemove',e=>{if(!drag)return;const dx=e.clientX-lx,dy=e.clientY-ly;cam[which].vx-=dx/cam[which].ppu;cam[which].vy+=dy/cam[which].ppu;lx=e.clientX;ly=e.clientY;redrawFn();});
+  window.addEventListener('mouseup',()=>drag=false);
+  el.addEventListener('contextmenu',e=>e.preventDefault());
+  el.addEventListener('wheel',e=>{e.preventDefault();const r=el.getBoundingClientRect();zoomAt(which,e.deltaY<0?1.12:.88,e.clientX-r.left,e.clientY-r.top,el.clientWidth,el.clientHeight);redrawFn();},{passive:false});
+  el.addEventListener('touchstart',e=>{if(e.touches.length===2){lpd=pDist(e);drag=false;}else{const p=getxy(e);drag=true;lx=p.x;ly=p.y;}},{passive:true});
+  el.addEventListener('touchmove',e=>{
+    if(e.touches.length===2){e.preventDefault();const d=pDist(e);if(lpd){const r=el.getBoundingClientRect();const mx=(e.touches[0].clientX+e.touches[1].clientX)/2-r.left,my=(e.touches[0].clientY+e.touches[1].clientY)/2-r.top;zoomAt(which,d/lpd,mx,my,el.clientWidth,el.clientHeight);redrawFn();}lpd=d;}
+    else if(drag){const p=getxy(e);cam[which].vx-=(p.x-lx)/cam[which].ppu;cam[which].vy+=(p.y-ly)/cam[which].ppu;lx=p.x;ly=p.y;redrawFn();}
+  },{passive:false});
+  el.addEventListener('touchend',()=>{lpd=null;drag=false;},{passive:true});
+}
+function zoomAt(which,f,mx,my,cw,ch){const c=cam[which];const dx=toDX(mx,cw,c),dy=toDY(my,ch,c);c.ppu=Math.min(Math.max(c.ppu*f,4),3000);c.vx=dx-(mx-cw/2)/c.ppu;c.vy=dy+(my-ch/2)/c.ppu;}
+function pDist(e){const dx=e.touches[0].clientX-e.touches[1].clientX,dy=e.touches[0].clientY-e.touches[1].clientY;return Math.sqrt(dx*dx+dy*dy);}
+
+// ── Area selection drag (for ∫ area under curve) ──
+function setupAreaSelect(el,which,redrawFn){
+  let selecting=false;
+  function getX(e){
+    const r=el.getBoundingClientRect();
+    const clientX=e.touches?.length?e.touches[0].clientX:e.clientX;
+    const mx=clientX-r.left;
+    const w=el.clientWidth;
+    return toDX(mx,w,cam[which]);
+  }
+  el.addEventListener('mousedown',e=>{
+    if(!areaSelecting||activeTab!=='graph')return;
+    selecting=true;const x=getX(e);areaSel={x1:x,x2:x};redrawFn();
+  });
+  el.addEventListener('mousemove',e=>{
+    if(!selecting)return;
+    areaSel.x2=getX(e);redrawFn();
+  });
+  window.addEventListener('mouseup',()=>{if(selecting){selecting=false;}});
+  el.addEventListener('touchstart',e=>{
+    if(!areaSelecting||activeTab!=='graph')return;
+    selecting=true;const x=getX(e);areaSel={x1:x,x2:x};redrawFn();
+  },{passive:true});
+  el.addEventListener('touchmove',e=>{
+    if(!selecting)return;
+    areaSel.x2=getX(e);redrawFn();
+  },{passive:true});
+  el.addEventListener('touchend',()=>{selecting=false;});
+}
+
+// ── Export / Share ──
+function exportPNG(){const link=document.createElement('a');link.download='matrix-graph.png';link.href=canvas.toDataURL('image/png');link.click();toast('✦ PNG downloaded');}
+function copyShareURL(){
+  const state={matrix,activeFns:activeFns.map(f=>({label:f.label,expr:f.expr,color:f.color})),tab:activeTab};
+  const encoded=btoa(unescape(encodeURIComponent(JSON.stringify(state))));
+  const url=window.location.href.split('?')[0]+'?state='+encoded;
+  navigator.clipboard.writeText(url).then(()=>toast('🔗 Link copied!')).catch(()=>prompt('Copy this URL:',url));
+}
+function loadFromURL(){
+  const params=new URLSearchParams(window.location.search);const s=params.get('state');if(!s)return;
+  try{
+    const state=JSON.parse(decodeURIComponent(escape(atob(s))));
+    if(state.matrix){matrix=state.matrix;rows=matrix.length;cols=matrix[0].length;buildGrid();}
+    if(state.activeFns){state.activeFns.forEach(f=>{try{const fn=makeFn(f.expr);fn(1);activeFns.push({...f,fn,showDeriv:false});}catch(e){}});}
+    if(state.tab)setTab(state.tab);
+    renderFnTags();hasViz=true;resizeCv();draw();toast('✦ State loaded');
+  }catch(e){console.warn('Failed to load state',e);}
+}
+
+// ── Theme toggle ──
+function toggleTheme(){
+  isLight=!isLight;
+  document.documentElement.classList.toggle('light',isLight);
+  document.getElementById('theme-btn').textContent=isLight?'☀️':'🌙';
+  draw();if(fsOpen)drawFs();
+  try{localStorage.setItem('mv_theme',isLight?'light':'dark');}catch(e){}
+}
+function loadTheme(){
+  try{
+    const saved=localStorage.getItem('mv_theme');
+    if(saved==='light'){isLight=true;document.documentElement.classList.add('light');document.getElementById('theme-btn').textContent='☀️';}
+  }catch(e){}
+}
+
+// ── Bookmarks (saved views) ──
+function saveBookmark(){
+  const name=prompt('Name this view:','View '+(bookmarks.length+1));
+  if(!name)return;
+  const snap={
+    name,
+    matrix:JSON.parse(JSON.stringify(matrix)),
+    activeFns:activeFns.map(f=>({label:f.label,expr:f.expr,color:f.color})),
+    tab:activeTab,
+    cam:JSON.parse(JSON.stringify(cam.small)),
+  };
+  bookmarks.push(snap);
+  try{localStorage.setItem('mv_bookmarks',JSON.stringify(bookmarks));}catch(e){}
+  renderBookmarkList();
+  toast('⭐ Saved: '+name);
+}
+function loadBookmark(i){
+  const b=bookmarks[i];if(!b)return;
+  pushUndo();
+  matrix=JSON.parse(JSON.stringify(b.matrix));rows=matrix.length;cols=matrix[0].length;
+  document.querySelectorAll('.sb').forEach(btn=>btn.classList.toggle('on',btn.textContent===`${rows}×${cols}`));
+  if(inputMode==='grid')buildGrid();else mxToText();
+  activeFns=[];
+  document.querySelectorAll('.fn-btn').forEach(btn=>btn.classList.remove('on'));
+  b.activeFns.forEach(f=>{
+    try{const fn=makeFn(f.expr);fn(1);activeFns.push({...f,fn,showDeriv:false});
+      const pi=FN_PRESETS.findIndex(p=>p.label===f.label);
+      if(pi>=0)document.querySelectorAll('.fn-btn')[pi]?.classList.add('on');
+    }catch(e){}
+  });
+  renderFnTags();
+  if(b.cam)Object.assign(cam.small,b.cam);
+  hasViz=true;resizeCv();setTab(b.tab||'graph');draw();
+  closeBookmarks();
+  toast('⭐ Loaded: '+b.name);
+}
+function deleteBookmark(i,e){
+  e.stopPropagation();
+  bookmarks.splice(i,1);
+  try{localStorage.setItem('mv_bookmarks',JSON.stringify(bookmarks));}catch(e){}
+  renderBookmarkList();
+}
+function openBookmarks(){
+  renderBookmarkList();
+  document.getElementById('bm-overlay').classList.add('open');
+}
+function closeBookmarks(){document.getElementById('bm-overlay').classList.remove('open');}
+function renderBookmarkList(){
+  const el=document.getElementById('bm-list');
+  if(!bookmarks.length){el.innerHTML='<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px">No saved views yet. Visualize something, then tap "Save current view" below.</div>';return;}
+  el.innerHTML=bookmarks.map((b,i)=>`
+    <div class="bm-item" onclick="loadBookmark(${i})">
+      <div>
+        <div class="bm-name">${b.name}</div>
+        <div class="bm-meta">${b.matrix.length}×${b.matrix[0].length} matrix · ${b.activeFns.length} fn · ${b.tab}</div>
+      </div>
+      <button class="bm-del" onclick="deleteBookmark(${i},event)">✕</button>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════
+//  ANIMATION ENGINE
+// ═══════════════════════════════════════════════════
+
+// Easing — smooth cubic in-out
+function easeInOut(t){return t<0.5?2*t*t:1-Math.pow(-2*t+2,2)/2;}
+// Elastic out for a bouncy finish
+function easeElastic(t){
+  const c4=(2*Math.PI)/3;
+  if(t===0)return 0;if(t===1)return 1;
+  return Math.pow(2,-10*t)*Math.sin((t*10-0.75)*c4)+1;
+}
+// Spring (slight overshoot)
+function easeSpring(t){
+  const c=1.70158*1.525;
+  if(t<0.5){return (Math.pow(2*t,2)*((c+1)*2*t-c))/2;}
+  return (Math.pow(2*t-2,2)*((c+1)*(2*t-2)+c)+2)/2;
+}
+
+// Kick off a canvas-level crossfade transition
+function triggerTransition(){
+  // capture current canvas as "previous" state
+  if(hasViz||activeFns.length){
+    animPrev=ctx.getImageData(0,0,canvas.width,canvas.height);
+  } else {
+    animPrev=null;
+  }
+  animProgress=0;
+  animStart=performance.now();
+  if(animRAF2) cancelAnimationFrame(animRAF2);
+  // ensure float loop is running (restarts if in breatheStep)
+  if(animFloatRAF){cancelAnimationFrame(animFloatRAF);animFloatRAF=null;}
+  kickFloatLoop();
+  function step(now){
+    const elapsed=now-animStart;
+    animProgress=Math.min(1, elapsed/animDuration);
+    if(animProgress<1) animRAF2=requestAnimationFrame(step);
+    else { animRAF2=null; animPrev=null; }
+  }
+  animRAF2=requestAnimationFrame(step);
+}
+
+// Register a new function reveal animation
+function startFnReveal(label){
+  fnReveal[label]={progress:0, start:performance.now()};
+  // Force restart the active loop as floatStep (breatheStep doesn't process reveals)
+  if(animFloatRAF){cancelAnimationFrame(animFloatRAF);animFloatRAF=null;}
+  kickFloatLoop();
+}
+
+// Continuous float loop — runs whenever needed
+function kickFloatLoop(){
+  if(animFloatRAF) return; // already running
+  function floatStep(now){
+    animFloatT=now*0.001;
+    // update fnReveal progress
+    let anyActive=false;
+    for(const label in fnReveal){
+      const r=fnReveal[label];
+      r.progress=Math.min(1,(now-r.start)/600); // 600ms reveal
+      if(r.progress<1) anyActive=true;
+    }
+    draw();
+    if(fsOpen) drawFs();
+    if(anyActive||animProgress<1||rotAnim||transformAnimating){
+      animFloatRAF=requestAnimationFrame(floatStep);
+    } else {
+      animFloatRAF=requestAnimationFrame(breatheStep);
+    }
+  }
+  animFloatRAF=requestAnimationFrame(floatStep);
+}
+// Low-frequency breathing once settled — redraws slowly for floating bob
+function breatheStep(now){
+  animFloatT=now*0.001;
+  // if a new reveal came in, switch back to floatStep
+  const anyPending=Object.values(fnReveal).some(r=>r.progress<1);
+  if(anyPending||animProgress<1||rotAnim||transformAnimating){
+    animFloatRAF=null;kickFloatLoop();return;
+  }
+  draw(); // keep floating bob alive
+  animFloatRAF=requestAnimationFrame(breatheStep);
+}
+
+// Get current reveal progress for a function label (1 if not animating)
+function getFnReveal(label){
+  const r=fnReveal[label];
+  if(!r) return 1;
+  return easeElastic(r.progress);
+}
+
+// Floating Y offset for a given element (subtle sinusoidal bob)
+function floatY(phase=0, amplitude=2){
+  return Math.sin(animFloatT*1.8+phase)*amplitude;
+}
+
+// ── Wrap draw() to composite with previous frame during transition ──
+const _rawDraw=draw;
+// We override draw() below after defining it
+
+// ── Toast ──
+function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2400);}
+
+// ── Keyboard ──
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&fsOpen){closeFs();return;}
+  const tag=document.activeElement.tagName;
+  if(tag==='INPUT'||tag==='TEXTAREA')return;
+  if(e.key===' '){e.preventDefault();if(activeTab==='rotation')toggleAnim();}
+  if(e.key==='r'||e.key==='R'){if(activeTab==='rotation')resetRot();else{resetCam('small');resetCam('fs');draw();if(fsOpen)drawFs();}}
+  if(e.key==='+'||e.key==='='){zoomAt('small',1.2,W()/2,H()/2,W(),H());draw();}
+  if(e.key==='-'||e.key==='_'){zoomAt('small',.8,W()/2,H()/2,W(),H());draw();}
+  if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();undo();}
+  if((e.ctrlKey||e.metaKey)&&(e.key==='y'||e.key==='Y')){e.preventDefault();redo();}
+});
+
+// ── Haptic feedback (mobile) ──
+function haptic(ms=10){
+  try{if(navigator.vibrate)navigator.vibrate(ms);}catch(e){}
+}
+
+// ── Gesture tutorial overlay (first-time only) ──
+function maybeShowGestureTutorial(){
+  let seen=false;
+  try{seen=localStorage.getItem('mv_seen_tutorial')==='1';}catch(e){}
+  if(seen)return;
+  const ov=document.createElement('div');
+  ov.id='gesture-tut';
+  ov.style.cssText='position:fixed;inset:0;z-index:1200;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;padding:20px;animation:bmUp .3s ease';
+  ov.innerHTML=`
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:320px;text-align:center">
+      <div style="font-size:38px;margin-bottom:10px">👋</div>
+      <div style="font-weight:700;font-size:15px;margin-bottom:14px">Quick gestures</div>
+      <div style="display:flex;flex-direction:column;gap:10px;text-align:left;font-size:12px;color:var(--muted)">
+        <div>✋ <strong style="color:var(--text)">Drag</strong> — pan the graph in any direction</div>
+        <div>🤏 <strong style="color:var(--text)">Pinch</strong> — zoom in / out on mobile</div>
+        <div>🖱️ <strong style="color:var(--text)">Scroll</strong> — zoom on desktop</div>
+        <div>👆 <strong style="color:var(--text)">Tap a curve</strong> — pin its coordinate</div>
+        <div>⌨️ <strong style="color:var(--text)">Space</strong> — play/pause rotation</div>
+      </div>
+      <button class="vbtn" style="margin-top:18px" onclick="dismissGestureTutorial()">Got it!</button>
+    </div>`;
+  document.body.appendChild(ov);
+}
+function dismissGestureTutorial(){
+  const ov=document.getElementById('gesture-tut');
+  if(ov)ov.remove();
+  try{localStorage.setItem('mv_seen_tutorial','1');}catch(e){}
+}
+
+// ── Rotation play pulse (subtle background dim sync) ──
+const origAnimLoopRef=typeof animLoop==='function'?animLoop:null;
+function pulseBodyWithRotation(){
+  if(rotAnim){
+    const pulse=0.5+0.5*Math.sin(rotAngle*2);
+    document.body.style.filter=`brightness(${1-pulse*0.015})`;
+  }else{
+    document.body.style.filter='';
+  }
+}
+
+// ── INIT ──
+buildPresets();
+buildGrid();
+buildGridB();
+resizeCv();
+draw();
+setupPanZoom(canvas,'small',draw);
+setupPanZoom(fsc,'fs',drawFs);
+setupCrosshair(canvas,canvas,'small','crosshair-tip');
+setupCrosshair(fsc,fsc,'fs','fs-crosshair-tip');
+setupAreaSelect(canvas,'small',draw);
+setupAreaSelect(fsc,'fs',drawFs);
+loadTheme();
+renderBookmarkList();
+document.getElementById('rot-slider').style.setProperty('--pct','0%');
+document.getElementById('spd-slider').style.setProperty('--pct','16.67%');
+document.getElementById('taylor-n').style.setProperty('--pct','30%');
+document.getElementById('taylor-a').style.setProperty('--pct','50%');
+// kick breathing float loop
+kickFloatLoop();
+document.getElementById('tanim-slider').style.setProperty('--pct','100%');
+setTab('graph');
+window.addEventListener('load',()=>{loadFromURL();setTimeout(()=>loadEx('rotate'),200);setTimeout(maybeShowGestureTutorial,900);});
+window.addEventListener('resize',()=>{if(hasViz||activeFns.length){resizeCv();draw();}if(fsOpen){resizeFs();drawFs();}});
+</script>
+</body>
+</html>
