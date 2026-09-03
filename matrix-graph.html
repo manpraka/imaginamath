@@ -107,6 +107,9 @@ html.light body{
   padding:7px 11px;font-family:var(--mono);font-size:13px;color:var(--text);outline:none;transition:border-color .15s}
 #fn-input:focus{border-color:var(--accent)}
 #fn-input::placeholder{color:#2a3a54}
+.fn-help{font-size:10px;color:var(--muted);line-height:1.55;margin-top:7px}
+.fn-help code{font-family:var(--mono);color:var(--accent)}
+#fn-error{display:none;margin-top:6px;font-size:11px;color:var(--red);line-height:1.4}
 .fn-add{padding:7px 13px;border-radius:9px;background:var(--accent);border:none;color:#fff;
   font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
 .fn-add:active{transform:scale(.97)}
@@ -303,15 +306,17 @@ input[type=range].rot-slider::-moz-range-thumb{width:15px;height:15px;border-rad
     <!-- FUNCTIONS -->
     <div class="card">
       <div class="ch">
-        <span class="cl">Functions</span>
+        <span class="cl">Function Plotter</span>
         <span id="fn-count" style="font-size:10px;color:var(--accent)"></span>
       </div>
       <div class="cb">
         <div class="fn-grid" id="fn-presets"></div>
         <div class="fn-custom">
-          <input id="fn-input" placeholder="Custom: x*sin(x)  or  x^2-4" />
-          <button class="fn-add" onclick="addCustomFn()">+ Add</button>
+          <input id="fn-input" aria-label="Function expression" placeholder="Enter y = f(x), e.g. sin(x) + x^2" />
+          <button class="fn-add" onclick="addCustomFn()">Plot</button>
         </div>
+        <div class="fn-help">Plot any expression in <code>x</code>. Supports <code>+ − × ÷ ^</code>, parentheses, <code>sin</code>, <code>cos</code>, <code>tan</code>, <code>log</code>, <code>sqrt</code>, <code>abs</code>, and constants <code>pi</code> and <code>e</code>.</div>
+        <div id="fn-error" role="alert"></div>
         <div class="active-fns" id="active-fns"></div>
       </div>
     </div>
@@ -771,21 +776,58 @@ function togglePreset(i,btn){
   }
   renderFnTags();if(!activeFns.length&&hasViz)draw();
 }
+function showFnError(message=''){
+  const error=document.getElementById('fn-error');
+  error.textContent=message;
+  error.style.display=message?'block':'none';
+}
 function addCustomFn(){
-  const raw=document.getElementById('fn-input').value.trim();
-  if(!raw){toast('Enter a function expression');return;}
-  const safeExpr=sanitizeExpr(raw);
+  const input=document.getElementById('fn-input');
+  const raw=input.value.trim();
+  if(!raw){showFnError('Enter a function to plot, such as sin(x) + x^2.');input.focus();return;}
   try{
-    const fn=makeFn(safeExpr);const test=fn(1);
-    if(typeof test!=='number')throw new Error('must return a number');
+    const safeExpr=sanitizeExpr(raw);
+    const fn=makeFn(safeExpr);
+    // Check several values so domain-restricted functions such as log(x) remain valid.
+    const samples=[-2,-1,0,1,2];
+    if(!samples.some(x=>Number.isFinite(fn(x))))throw new Error('The expression has no finite values near the origin.');
     const color=COLORS[activeFns.length%COLORS.length];
     activeFns.push({label:raw,expr:safeExpr,color,fn,showDeriv:false});
-    document.getElementById('fn-input').value='';
+    input.value='';showFnError('');
     renderFnTags();setTab('graph');
     if(!hasViz){hasViz=true;resizeCv();}
     startFnReveal(raw);
-    toast('✦ Added: '+raw);
-  }catch(e){toast('⚠ Invalid: '+e.message);}
+    toast('✦ Plotting: '+raw);
+  }catch(e){showFnError(e.message);input.focus();}
+}
+function makeFn(expr){
+  return new Function('x',`"use strict";return (${expr});`);
+}
+function sanitizeExpr(raw){
+  let expr=raw.trim()
+    .replace(/^y\s*=\s*/i,'')
+    .replace(/[−–]/g,'-').replace(/×/g,'*').replace(/÷/g,'/')
+    .replace(/π/gi,'pi').replace(/√\s*([A-Za-z0-9.(])/g,'sqrt($1')
+    .replace(/\^/g,'**');
+  if(!expr)throw new Error('Enter an expression after “y =”.');
+  if(!/^[0-9A-Za-z_+\-*/%().,\s]+$/.test(expr))throw new Error('Use numbers, x, math operators, parentheses, and supported functions only.');
+  const names={sin:'sin',cos:'cos',tan:'tan',asin:'asin',acos:'acos',atan:'atan',sinh:'sinh',cosh:'cosh',tanh:'tanh',exp:'exp',sqrt:'sqrt',abs:'abs',floor:'floor',ceil:'ceil',round:'round',min:'min',max:'max',pow:'pow',log:'log',log10:'log10'};
+  const constants={pi:'PI',e:'E',tau:'PI*2'};
+  const identifiers=expr.match(/[A-Za-z_]\w*/g)||[];
+  identifiers.forEach(name=>{
+    const lower=name.toLowerCase();
+    if(lower==='x'||lower==='math'||Object.hasOwn(names,lower)||Object.hasOwn(constants,lower))return;
+    throw new Error(`Unsupported name “${name}”. Use x or a supported math function.`);
+  });
+  expr=expr.replace(/\b([A-Za-z_]\w*)\b/g,(name,_identifier,offset,source)=>{
+    const lower=name.toLowerCase();
+    if(lower==='x'||lower==='math')return lower==='math'?'Math':'x';
+    if(Object.hasOwn(constants,lower))return `Math.${constants[lower]}`;
+    // Preserve Math.sin(x) while accepting the shorter sin(x) form.
+    return source[offset-1]==='.'?names[lower]:`Math.${names[lower]}`;
+  });
+  if(/Math\.undefined|(?:^|[^*])\*{3,}/.test(expr))throw new Error('Check the expression syntax.');
+  return expr;
 }
 function removeFn(i){
   const removed=activeFns.splice(i,1)[0];
@@ -808,17 +850,6 @@ function renderFnTags(){
     el.appendChild(tag);
   });
   document.getElementById('fn-count').textContent=activeFns.length?`${activeFns.length} active`:'';
-}
-function makeFn(expr){
-  return new Function('x',`"use strict";try{return(${expr});}catch(e){return NaN;}`);
-}
-function sanitizeExpr(raw){
-  return raw.replace(/\^/g,'**')
-    .replace(/\bsin\b/g,'Math.sin').replace(/\bcos\b/g,'Math.cos')
-    .replace(/\btan\b/g,'Math.tan').replace(/\bexp\b/g,'Math.exp')
-    .replace(/\bsqrt\b/g,'Math.sqrt').replace(/\babs\b/g,'Math.abs')
-    .replace(/\bln\b/g,'Math.log').replace(/\blog10\b/g,'Math.log10')
-    .replace(/\blog\b/g,'Math.log').replace(/\bPI\b/g,'Math.PI').replace(/\bE\b/g,'Math.E');
 }
 function derivative(fn,x){const h=1e-5;return(fn(x+h)-fn(x-h))/(2*h);}
 function findRoots(fn,xMin,xMax,steps=600){
@@ -2190,6 +2221,7 @@ function pulseBodyWithRotation(){
 
 // ── INIT ──
 buildPresets();
+document.getElementById('fn-input').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addCustomFn();}});
 buildGrid();
 buildGridB();
 resizeCv();
